@@ -54,6 +54,16 @@
   .nav-icon{font-size:15px;width:18px;text-align:center}
   .nav-badge{margin-left:auto;background:var(--danger);color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px}
   .sidebar-footer{padding:12px 16px;border-top:1px solid var(--border)}
+  .nav-parent{display:flex;align-items:center;gap:10px;padding:8px 16px;margin:1px 8px;border-radius:var(--radius-sm);cursor:pointer;color:var(--text2);font-size:13px;transition:all .15s;user-select:none}
+  .nav-parent:hover{background:var(--surface2);color:var(--text)}
+  .nav-parent.open{color:var(--text);font-weight:500}
+  .nav-chevron{margin-left:auto;font-size:10px;transition:transform .2s;display:inline-block}
+  .nav-chevron.open{transform:rotate(90deg)}
+  .nav-sub{overflow:hidden;max-height:0;transition:max-height .25s ease}
+  .nav-sub.open{max-height:200px}
+  .nav-subitem{display:flex;align-items:center;gap:8px;padding:6px 16px 6px 34px;margin:1px 8px;border-radius:var(--radius-sm);cursor:pointer;color:var(--text2);font-size:12px;transition:all .15s}
+  .nav-subitem:hover{background:var(--surface2);color:var(--text)}
+  .nav-subitem.active{background:var(--accent-light);color:var(--accent);font-weight:500}
 
   /* Forms */
   .form-group{margin-bottom:16px}
@@ -188,6 +198,7 @@ let state = {
   approvalModal: null, approvalObs: '',
   modalUsuario: null,
   newReq: { tipo: 'Férias', dataInicio: '', dataFim: '', obs: '' },
+  menuAusenciasOpen: true,
   filtroAprovUser: '', filtroAprovStatus: 'Pendente', filtroAprovInicio: '', filtroAprovFim: '',
   filtroUsuNome: '', filtroUsuDept: '', filtroUsuStatus: '',
   dashFiltroUser: '', dashFiltroStatus: '', dashFiltroInicio: '', dashFiltroFim: '',
@@ -585,6 +596,17 @@ function viewLogin() {
 function viewSidebar() {
   const u = state.currentUser;
   const pending = getPendingDaArea(u);
+  const peopleCount = state.solicitacoes.filter(s=>s.status==='Aprovada'&&!s.people_acknowledged).length;
+  const subViews = ['aprovacoes','people'];
+  const subOpen = state.menuAusenciasOpen || subViews.includes(state.view);
+  const subCls = subOpen ? 'open' : '';
+
+  const navSub = (v, icon, label, badge) => {
+    const b = badge ? `<span class="nav-badge">${badge}</span>` : '';
+    return `<div class="nav-subitem ${state.view===v?'active':''}" onclick="state.view='${v}';render()">
+      <span style="font-size:13px">${icon}</span>${label}${b}</div>`;
+  };
+
   return `
   <div id="sidebar">
     <div class="sidebar-brand" style="padding:16px 16px 14px">
@@ -594,24 +616,43 @@ function viewSidebar() {
       </div>
     </div>
     <div class="sidebar-user">
-      <div class="avatar">${u.avatar||u.name.slice(0,2).toUpperCase()}</div>
+      <div class="avatar" style="${u.avatar_url?'background:none;padding:0;overflow:hidden':''}">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:u.avatar||u.name.slice(0,2).toUpperCase()}</div>
       <div>
         <div class="user-name">${u.name.split(' ')[0]}</div>
-        <div class="user-role">${u.role==='gestor'?'Gestor':u.role==='admin'?'Admin':'Colaborador'}</div>
+        <div class="user-role">${u.role==='gestor'?'Gestor':u.role==='admin'?'Admin':u.role==='people'?'People':'Colaborador'}</div>
       </div>
     </div>
-    <nav>
-      <div class="nav-section">Menu</div>
+    <nav style="overflow-y:auto;flex:1">
+
+      <div class="nav-section">Dashboard</div>
       ${navItem('dashboard','📊','Dashboard')}
-      ${navItem('minhas','📋','Minhas Ausências')}
-      ${(u.role==='gestor'||u.role==='admin') ? navItem('aprovacoes','✅','Aprovações de ausência', pending) : ''}
-      ${navItem('equipe','👥','Equipe')}
+
+      <div class="nav-section">Agenda</div>
       ${navItem('calendario','📅','Calendário')}
-      ${navItem('nova','➕','Nova Solicitação de Ausência')}
-      ${u.role==='admin' ? `<div class="nav-section">Admin</div>${navItem('usuarios','⚙️','Usuários')}` : ''}
-      ${(u.role==='people'||u.role==='admin') ? `<div class="nav-section">People</div>${navItem('people','👁️','Ciência People', state.solicitacoes.filter(s=>s.status==='Aprovada'&&!s.people_acknowledged).length||'')}` : ''}
-      <div class="nav-section">IA</div>
+      ${navItem('equipe','👥','Equipe')}
+
+      <div class="nav-section">Ausências</div>
+      ${navItem('minhas','📋','Minhas Ausências')}
+      ${navItem('nova','➕','Nova Solicitação')}
+
+      ${(u.role==='gestor'||u.role==='admin'||u.role==='people') ? `
+      <div class="nav-parent ${subCls}" onclick="state.menuAusenciasOpen=!state.menuAusenciasOpen;render()">
+        <span class="nav-icon">🗂️</span>Gestão de Ausências
+        ${(pending+peopleCount)>0?`<span class="nav-badge">${pending+peopleCount}</span>`:''}
+        <span class="nav-chevron ${subCls}">›</span>
+      </div>
+      <div class="nav-sub ${subCls}">
+        ${(u.role==='gestor'||u.role==='admin') ? navSub('aprovacoes','✅','Aprovações', pending||'') : ''}
+        ${(u.role==='people'||u.role==='admin') ? navSub('people','👁️','Ciência People', peopleCount||'') : ''}
+      </div>` : ''}
+
+      ${u.role==='admin' ? `
+      <div class="nav-section">Pessoas</div>
+      ${navItem('usuarios','👤','Usuários')}` : ''}
+
+      <div class="nav-section">Inteligência</div>
       ${navItem('assistente','🤖','Assistente IA')}
+
     </nav>
     <div class="sidebar-footer">
       <button class="btn btn-secondary btn-sm" onclick="logout()" style="width:100%">Sair</button>
