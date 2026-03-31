@@ -231,6 +231,22 @@ async function dbSalvarUsuario(form) {
       gestor_id: form.gestorId || null, status: form.status,
     }).eq('id', form.id);
     if (error) throw error;
+    // atualizar ficha de colaborador se data de admissão foi informada
+    if (form.inicioContrato) {
+      const existing = state.colaboradores.find(c => c.user_id === form.id);
+      if (existing) {
+        await sb.from('colaboradores').update({
+          inicio_contrato: form.inicioContrato,
+          dias_ciclo: form.diasCiclo || 30,
+        }).eq('user_id', form.id);
+      } else {
+        await sb.from('colaboradores').insert([{
+          user_id: form.id,
+          inicio_contrato: form.inicioContrato,
+          dias_ciclo: form.diasCiclo || 30,
+        }]);
+      }
+    }
   } else {
     // criar via Supabase Auth
     const { data: authData, error: authErr } = await sb.auth.admin ? 
@@ -418,6 +434,7 @@ async function salvarUsuario(form) {
   if (!nome || !email) { showToast('Nome e e-mail são obrigatórios', 'error'); return; }
   // REGRA: gestor deve ter departamento obrigatório
   if (form.role === 'gestor' && !form.departamento) { showToast('Gestor deve ter um departamento vinculado', 'error'); return; }
+  if (!form.id && !form.inicioContrato) { showToast('Data de admissão é obrigatória', 'error'); return; }
   try {
     await dbSalvarUsuario(form);
     state.modalUsuario = null;
@@ -434,10 +451,16 @@ async function toggleStatus(userId) {
 }
 
 function abrirModalUsuario(user) {
-  state.modalUsuario = user ? { ...user } : {
+  const colab = state.colaboradores.find(c => c.user_id === user?.id);
+  state.modalUsuario = user ? {
+    ...user,
+    inicioContrato: colab?.inicio_contrato || '',
+  } : {
     id: null, nome: '', email: '', role: 'colaborador',
     funcao: '', squad: '', departamento: DEPARTAMENTOS[0], gestorId: '', status: 'ativo',
+    inicioContrato: '',
   };
+  state.avatarPreview = user?.avatar_url || null;
   render();
 }
 
@@ -1172,6 +1195,19 @@ function viewUsuarios() {
             <option value="inativo" ${(modalU.status||'')==='inativo'?'selected':''}>Inativo</option>
           </select></div>
         </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Data de admissão *</label>
+            <input type="date" id="mu-admissao" value="${modalU.inicioContrato||''}">
+            <div class="form-hint">Usada para calcular o ciclo de saldo de férias</div>
+          </div>
+          <div class="form-group">
+            <label>Dias por ciclo</label>
+            <input type="number" id="mu-ciclo" value="30" min="1" max="60"
+              style="width:100%">
+            <div class="form-hint">Padrão: 30 dias por ano</div>
+          </div>
+        </div>
         ${isNovo?`<div class="alert alert-info" style="margin-top:4px">ℹ️ Uma senha temporária será enviada por e-mail ao novo usuário via Supabase.</div>`:''}
         <div class="modal-actions">
           <button class="btn btn-secondary" onclick="state.modalUsuario=null;render()">Cancelar</button>
@@ -1186,6 +1222,8 @@ function viewUsuarios() {
               departamento:document.getElementById('mu-dept').value,
               gestorId:document.getElementById('mu-gestor').value,
               status:document.getElementById('mu-status').value,
+              inicioContrato:document.getElementById('mu-admissao').value,
+              diasCiclo:parseInt(document.getElementById('mu-ciclo').value)||30,
             });
             const avatarFile=document.getElementById('mu-avatar')?.files?.[0];
             if(avatarFile){
