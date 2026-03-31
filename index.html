@@ -818,11 +818,11 @@ function viewMinhas() {
   const u=state.currentUser;
   const sols=state.solicitacoes.filter(s=>s.user_id===u.id);
   return `<div id="content">
-    <div class="page-header flex-between">
+    <div class="page-header flex-between" style="margin-bottom:32px">
       <div><div class="page-title">Minhas Solicitações</div><div class="page-desc">Histórico completo</div></div>
       <button class="btn btn-primary" onclick="state.view='nova';render()">+ Nova solicitação</button>
     </div>
-    ${sols.length===0?`<div class="empty-state card"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma solicitação</div></div>`:`
+    ${sols.length===0?`<div class="empty-state card" style="padding:56px 20px"><div class="empty-icon">📋</div><div class="empty-text" style="margin-bottom:8px">Nenhuma solicitação ainda</div><div class="empty-sub">Clique em "+ Nova solicitação" para registrar férias ou folga</div></div>`:`
     <div class="table-wrap"><table>
       <thead><tr><th>Tipo</th><th>Data início</th><th>Data fim</th><th>Dias</th><th>Status</th><th>Observação</th><th>Ações</th></tr></thead>
       <tbody>${sols.map(s=>`<tr>
@@ -991,6 +991,56 @@ function viewEquipe() {
         </div>`;
       }).join('')}
     </div>
+
+    <!-- Férias e folgas programadas no departamento -->
+    ${(()=>{
+      const hoje = new Date().toISOString().slice(0,10);
+      const idsDaArea = colabsDaArea.map(c => c.user_id);
+      const programadas = state.solicitacoes
+        .filter(s =>
+          idsDaArea.includes(s.user_id) &&
+          ['Aprovada','Pendente'].includes(s.status) &&
+          s.data_inicio >= hoje
+        )
+        .sort((a,b) => a.data_inicio.localeCompare(b.data_inicio));
+
+      if (programadas.length === 0) return '';
+
+      return `<div class="card" style="margin-top:16px">
+        <div class="card-title" style="margin-bottom:14px">📅 Ausências programadas no departamento</div>
+        <div class="table-wrap" style="border:none">
+          <table>
+            <thead>
+              <tr>
+                <th>Colaborador</th>
+                <th>Tipo</th>
+                <th>Início</th>
+                <th>Fim</th>
+                <th>Dias</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${programadas.map(s => {
+                const usr = getUserById(s.user_id);
+                const row = '<tr>'
+                  +'<td><div class="flex gap-2">'
+                  +'<div class="avatar" style="width:26px;height:26px;font-size:10px">'+(usr?.avatar||usr?.name?.slice(0,2)||'??')+'</div>'
+                  +'<div><div style="font-size:13px;font-weight:500">'+(usr?.name||'—')+'</div>'
+                  +'<div style="font-size:11px;color:var(--text3)">'+(usr?.funcao||'')+'</div></div></div></td>'
+                  +'<td><span class="badge badge-info">'+s.tipo+'</span></td>'
+                  +'<td style="font-size:12px">'+formatDate(s.data_inicio)+'</td>'
+                  +'<td style="font-size:12px">'+formatDate(s.data_fim)+'</td>'
+                  +'<td style="font-size:12px">'+s.dias+'d</td>'
+                  +'<td>'+getStatusBadge(s.status)+'</td>'
+                  +'</tr>';
+                return row;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+    })()}
   </div>`;
 }
 
