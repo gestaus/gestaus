@@ -271,6 +271,17 @@ async function dbSalvarUsuario(form) {
   await loadAllData();
 }
 
+async function uploadAvatar(userId, file) {
+  const ext = file.name.split('.').pop();
+  const path = userId + '.' + ext;
+  const { error: upErr } = await sb.storage.from('avatars').upload(path, file, { upsert: true });
+  if (upErr) throw upErr;
+  const { data } = sb.storage.from('avatars').getPublicUrl(path);
+  const { error: dbErr } = await sb.from('users').update({ avatar_url: data.publicUrl }).eq('id', userId);
+  if (dbErr) throw dbErr;
+  await loadAllData();
+}
+
 async function dbToggleStatus(userId) {
   const u = state.users.find(x => x.id === userId);
   if (!u) return;
@@ -954,11 +965,11 @@ function viewNova() {
     + '<div class="form-row" style="gap:16px">'
     + '<div class="form-group" style="margin-bottom:0"><label>Data de início</label>'
     + '<input type="date" id="nova-inicio" value="' + state.newReq.dataInicio + '"'
-    + ' onchange="window._novaSetDataFn('dataInicio',this.value)"'
+    + ' onchange="window._novaSetDataFn(this.dataset.field,this.value)" data-field="dataInicio"'
     + ' style="font-size:14px;padding:10px 12px"></div>'
     + '<div class="form-group" style="margin-bottom:0"><label>Data de fim</label>'
     + '<input type="date" id="nova-fim" value="' + state.newReq.dataFim + '"'
-    + ' onchange="window._novaSetDataFn('dataFim',this.value)"'
+    + ' onchange="window._novaSetDataFn(this.dataset.field,this.value)" data-field="dataFim"'
     + ' style="font-size:14px;padding:10px 12px"></div>'
     + '</div>'
 
@@ -969,7 +980,7 @@ function viewNova() {
     + '<div class="form-hint">Alinhamentos prévios, justificativa, etc.</div></div>'
 
     + '<div class="flex gap-2" style="justify-content:flex-end;margin-top:8px">'
-    + '<button class="btn btn-secondary" onclick="state.view='dashboard';render()">Cancelar</button>'
+    + '<button class="btn btn-secondary" onclick="state.view=&apos;dashboard&apos;;render()">Cancelar</button>'
     + '<button id="nova-btn-enviar" class="btn btn-primary" onclick="criarSolicitacao()" ' + btnDisabled + '>Enviar solicitação</button>'
     + '</div></div>'
 
