@@ -154,7 +154,11 @@
 </style>
 </head>
 <body>
-<div id="app"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:16px"><div class="spinner"></div><div style="font-size:13px;color:var(--text3)">Carregando...</div></div></div>
+<div id="app"></div>
+<div id="global-loading" style="position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+  <div class="spinner"></div>
+  <div style="font-size:13px;color:var(--text3)">Carregando...</div>
+</div>
 
 <script>
 // ══════════════════════════════════════════
@@ -412,6 +416,8 @@ async function cancelar(id) {
 async function salvarUsuario(form) {
   const nome = form.nome.trim(); const email = form.email.trim().toLowerCase();
   if (!nome || !email) { showToast('Nome e e-mail são obrigatórios', 'error'); return; }
+  // REGRA: gestor deve ter departamento obrigatório
+  if (form.role === 'gestor' && !form.departamento) { showToast('Gestor deve ter um departamento vinculado', 'error'); return; }
   try {
     await dbSalvarUsuario(form);
     state.modalUsuario = null;
@@ -1120,16 +1126,42 @@ function viewUsuarios() {
           <div class="form-group"><label>E-mail corporativo *</label><input type="email" id="mu-email" value="${modalU.email||''}" placeholder="ana@empresa.com.br"></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Departamento</label><select id="mu-dept">${DEPARTAMENTOS.map(d=>`<option value="${d}" ${(modalU.departamento||'')===d?'selected':''}>${d}</option>`).join('')}</select></div>
+          <div class="form-group"><label>Departamento</label>
+            <select id="mu-dept" onchange="
+              const dept=this.value;
+              const gestorEl=document.getElementById('mu-gestor');
+              const warnEl=document.getElementById('mu-role-warn');
+              const roleEl=document.getElementById('mu-role');
+              // preencher gestor automaticamente pelo departamento
+              if(gestorEl && dept){
+                const gestorDoDept=state.users.find(x=>x.role==='gestor'&&(x.departamento||x.squad)===dept);
+                if(gestorDoDept) gestorEl.value=gestorDoDept.id;
+              }
+              // ocultar aviso se departamento foi preenchido
+              if(warnEl&&roleEl&&roleEl.value==='gestor') warnEl.style.display=dept?'none':'block';
+            ">
+              ${DEPARTAMENTOS.map(d=>`<option value="${d}" ${(modalU.departamento||'')===d?'selected':''}>${d}</option>`).join('')}
+            </select>
+          </div>
           <div class="form-group"><label>Squad / Área</label><input type="text" id="mu-squad" value="${modalU.squad||''}" placeholder="Ex: SGE"></div>
         </div>
         <div class="form-row">
           <div class="form-group"><label>Cargo / Função</label><input type="text" id="mu-funcao" value="${modalU.funcao||''}" placeholder="Ex: Dev, PO, Gerente"></div>
-          <div class="form-group"><label>Perfil de acesso</label><select id="mu-role">
-            <option value="colaborador" ${(modalU.role||'')==='colaborador'?'selected':''}>Colaborador</option>
-            <option value="gestor"      ${(modalU.role||'')==='gestor'     ?'selected':''}>Gestor</option>
-            <option value="admin"       ${(modalU.role||'')==='admin'      ?'selected':''}>Admin</option>
-          </select></div>
+          <div class="form-group"><label>Perfil de acesso</label>
+            <select id="mu-role" onchange="
+              const r=this.value;
+              const deptEl=document.getElementById('mu-dept');
+              const warnEl=document.getElementById('mu-role-warn');
+              if(warnEl) warnEl.style.display=r==='gestor'&&!deptEl?.value?'block':'none';
+            ">
+              <option value="colaborador" ${(modalU.role||'')==='colaborador'?'selected':''}>Colaborador</option>
+              <option value="gestor"      ${(modalU.role||'')==='gestor'     ?'selected':''}>Gestor</option>
+              <option value="admin"       ${(modalU.role||'')==='admin'      ?'selected':''}>Admin</option>
+            </select>
+            <div id="mu-role-warn" style="display:${(modalU.role||'')==='gestor'&&!(modalU.departamento||'')?'block':'none'};font-size:11px;color:var(--warn);margin-top:4px">
+              ⚠️ Gestor deve ter departamento vinculado
+            </div>
+          </div>
         </div>
         <div class="form-row">
           <div class="form-group"><label>Gestor responsável</label><select id="mu-gestor"><option value="">Nenhum</option>
@@ -1208,6 +1240,9 @@ function render() {
       await sb.auth.signOut();
     }
   }
+  // ocultar loading global após inicialização
+  const gl = document.getElementById('global-loading');
+  if (gl) gl.style.display = 'none';
   render();
 })();
 
