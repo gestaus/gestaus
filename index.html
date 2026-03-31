@@ -1143,17 +1143,24 @@ function viewUsuarios() {
         ${isNovo?`<div class="alert alert-info" style="margin-top:4px">ℹ️ Uma senha temporária será enviada por e-mail ao novo usuário via Supabase.</div>`:''}
         <div class="modal-actions">
           <button class="btn btn-secondary" onclick="state.modalUsuario=null;render()">Cancelar</button>
-          <button class="btn btn-primary" onclick="salvarUsuario({
-            id:'${modalU.id||''}',
-            nome:document.getElementById('mu-nome').value,
-            email:document.getElementById('mu-email').value,
-            role:document.getElementById('mu-role').value,
-            funcao:document.getElementById('mu-funcao').value,
-            squad:document.getElementById('mu-squad').value,
-            departamento:document.getElementById('mu-dept').value,
-            gestorId:document.getElementById('mu-gestor').value,
-            status:document.getElementById('mu-status').value,
-          })">${isNovo?'Criar usuário':'Salvar alterações'}</button>
+          <button class="btn btn-primary" onclick="(async()=>{
+            await salvarUsuario({
+              id:'${modalU.id||''}',
+              nome:document.getElementById('mu-nome').value,
+              email:document.getElementById('mu-email').value,
+              role:document.getElementById('mu-role').value,
+              funcao:document.getElementById('mu-funcao').value,
+              squad:document.getElementById('mu-squad').value,
+              departamento:document.getElementById('mu-dept').value,
+              gestorId:document.getElementById('mu-gestor').value,
+              status:document.getElementById('mu-status').value,
+            });
+            const avatarFile=document.getElementById('mu-avatar')?.files?.[0];
+            if(avatarFile){
+              const user=state.users.find(x=>x.email===document.getElementById('mu-email').value.trim().toLowerCase());
+              if(user) try{ await uploadAvatar(user.id,avatarFile); showToast('Foto atualizada ✓'); }catch(e){ showToast('Erro ao salvar foto','error'); }
+            }
+          })()">${isNovo?'Criar usuário':'Salvar alterações'}</button>
         </div>
       </div>
     </div>`:''}
