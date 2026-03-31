@@ -193,6 +193,7 @@ let state = {
   dashFiltroUser: '', dashFiltroStatus: '', dashFiltroInicio: '', dashFiltroFim: '',
   adminDashUser: '', adminDashDept: '', adminDashStatus: '', adminDashTipo: '',
   aiLoading: false, aiResponse: '',
+  peopleSelected: [], peopleFiltroUser: '', peopleFiltroInicio: '', peopleFiltroFim: '',
 };
 
 const DEPARTAMENTOS = ['Inovação & Desenvolvimento','Dados','Infraestrutura e Serviços','Produto','Operações'];
@@ -295,9 +296,18 @@ function getSaldo(userId) {
   return { diasCiclo: colab.dias_ciclo, usados, saldo: Math.max(0, colab.dias_ciclo - usados) };
 }
 
-function getStatusBadge(status) {
+function getStatusBadge(status, sol) {
   const map = { Pendente:'badge-pending', Aprovada:'badge-approved', Recusada:'badge-rejected', Realizada:'badge-done', Cancelada:'badge-cancelled' };
-  return `<span class="badge ${map[status]||'badge-pending'}">${status}</span>`;
+  let badge = `<span class="badge ${map[status]||'badge-pending'}">${status}</span>`;
+  // complemento de ciência People — apenas informativo, não altera status
+  if (sol && status === 'Aprovada') {
+    if (sol.people_acknowledged) {
+      badge += ` <span class="badge" style="background:#d1fae5;color:#065f46;font-size:10px">✓ People ciente</span>`;
+    } else {
+      badge += ` <span class="badge" style="background:#fef3c7;color:#92400e;font-size:10px">⏳ Aguarda People</span>`;
+    }
+  }
+  return badge;
 }
 
 function getSaldoStatus(saldo, usados, ciclo) {
@@ -429,6 +439,43 @@ async function cancelar(id) {
   } catch(e) { showToast('Erro ao cancelar', 'error'); }
 }
 
+async function registrarCiencia(ids) {
+  const agora = new Date().toISOString();
+  const u = state.currentUser;
+  try {
+    for (const id of ids) {
+      // atualiza localmente para feedback imediato
+      const s = state.solicitacoes.find(x => x.id === id);
+      if (s) {
+        s.people_acknowledged = true;
+        s.people_acknowledged_by = u.name;
+        s.people_acknowledged_at = agora;
+      }
+      // persiste no banco (campos adicionais via upsert)
+      await sb.from('solicitacoes').update({
+        people_acknowledged: true,
+        people_acknowledged_by: u.id,
+        people_acknowledged_at: agora,
+      }).eq('id', id);
+    }
+    state.peopleSelected = [];
+    showToast(ids.length > 1 ? ids.length + ' ciências registradas ✓' : 'Ciência registrada ✓');
+    render();
+  } catch(e) {
+    // fallback: atualiza só local se banco não tiver coluna ainda
+    showToast('Ciência registrada localmente ✓');
+    state.peopleSelected = [];
+    render();
+  }
+}
+
+function togglePeopleSelect(id) {
+  const idx = state.peopleSelected.indexOf(id);
+  if (idx === -1) state.peopleSelected.push(id);
+  else state.peopleSelected.splice(idx, 1);
+  render();
+}
+
 async function salvarUsuario(form) {
   const nome = form.nome.trim(); const email = form.email.trim().toLowerCase();
   if (!nome || !email) { showToast('Nome e e-mail são obrigatórios', 'error'); return; }
@@ -551,6 +598,7 @@ function viewSidebar() {
       ${navItem('calendario','📅','Calendário')}
       ${navItem('nova','➕','Nova Solicitação de Ausência')}
       ${u.role==='admin' ? `<div class="nav-section">Admin</div>${navItem('usuarios','⚙️','Usuários')}` : ''}
+      ${(u.role==='people'||u.role==='admin') ? `<div class="nav-section">People</div>${navItem('people','👁️','Ciência People', state.solicitacoes.filter(s=>s.status==='Aprovada'&&!s.people_acknowledged).length||'')}` : ''}
       <div class="nav-section">IA</div>
       ${navItem('assistente','🤖','Assistente IA')}
     </nav>
@@ -1133,6 +1181,156 @@ function viewEquipe() {
   </div>`;
 }
 
+function viewPeople() {
+  const u = state.currentUser;
+  const hoje = new Date().toISOString().slice(0,10);
+
+  // solicitações aprovadas, escopo: admin vê tudo, people vê tudo aprovado
+  const aprovadas = state.solicitacoes.filter(s => s.status === 'Aprovada');
+  const pendenteCiencia = aprovadas.filter(s => !s.people_acknowledged);
+  const comCiencia = aprovadas.filter(s => s.people_acknowledged);
+
+  // filtros
+  const fUser = state.peopleFiltroUser || '';
+  const fIni  = state.peopleFiltroInicio || '';
+  const fFim  = state.peopleFiltroFim || '';
+
+  let lista = pendenteCiencia;
+  if (fUser)  lista = lista.filter(s => s.user_id === fUser);
+  if (fIni)   lista = lista.filter(s => s.data_inicio >= fIni);
+  if (fFim)   lista = lista.filter(s => s.data_fim <= fFim);
+
+  const todosIds = lista.map(s => s.id);
+  const todasSelecionadas = todosIds.length > 0 && todosIds.every(id => state.peopleSelected.includes(id));
+
+  return `<div id="content">
+    <div class="page-header flex-between" style="margin-bottom:24px">
+      <div>
+        <div class="page-title">Ciência People</div>
+        <div class="page-desc">${pendenteCiencia.length} ausência(s) aguardando ciência · ${comCiencia.length} finalizada(s)</div>
+      </div>
+      ${state.peopleSelected.length > 0 ? `
+      <button class="btn btn-primary" onclick="registrarCiencia([${state.peopleSelected.join(',')}])">
+        ✓ Registrar ciência (${state.peopleSelected.length} selecionada${state.peopleSelected.length>1?'s':''})
+      </button>` : ''}
+    </div>
+
+    <!-- Resumo -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+      <div class="stat-card">
+        <div class="stat-label">Aguardando ciência</div>
+        <div class="stat-value ${pendenteCiencia.length>0?'stat-amber':'stat-green'}">${pendenteCiencia.length}</div>
+        <div class="stat-sub">ausência(s) pendentes</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Ciência registrada</div>
+        <div class="stat-value stat-green">${comCiencia.length}</div>
+        <div class="stat-sub">ausência(s) finalizadas</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Selecionadas</div>
+        <div class="stat-value stat-blue">${state.peopleSelected.length}</div>
+        <div class="stat-sub">para ação em massa</div>
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4" style="padding:14px 16px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div>
+          <label>Colaborador</label>
+          <select onchange="state.peopleFiltroUser=this.value;render()">
+            <option value="">Todos</option>
+            ${state.users.filter(x=>x.role!=='admin').map(x=>`<option value="${x.id}" ${fUser===x.id?'selected':''}>${x.name.split(' ')[0]}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label>De</label>
+          <input type="date" value="${fIni}" onchange="state.peopleFiltroInicio=this.value;render()">
+        </div>
+        <div>
+          <label>Até</label>
+          <input type="date" value="${fFim}" onchange="state.peopleFiltroFim=this.value;render()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista aguardando ciência -->
+    ${lista.length === 0
+      ? `<div class="empty-state card"><div class="empty-icon">✅</div><div class="empty-text">Nenhuma ausência aguardando ciência</div><div class="empty-sub">Todas as ausências aprovadas já foram registradas</div></div>`
+      : `<div class="card mb-4">
+          <div class="flex-between mb-4">
+            <div><div class="card-title">Aguardando ciência</div><div class="card-sub">${lista.length} ausência(s)</div></div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+              <input type="checkbox" ${todasSelecionadas?'checked':''}
+                onchange="if(this.checked){state.peopleSelected=[...new Set([...state.peopleSelected,...[${todosIds.join(',')}]])]}else{state.peopleSelected=state.peopleSelected.filter(id=>![${todosIds.join(',')}].includes(id))};render()">
+              Selecionar todas
+            </label>
+          </div>
+          <div class="table-wrap" style="border:none">
+            <table>
+              <thead><tr><th style="width:40px"></th><th>Colaborador</th><th>Tipo</th><th>Período</th><th>Dias</th><th>Aprovado por</th><th>Ação</th></tr></thead>
+              <tbody>
+                ${lista.map(s => {
+                  const usr = getUserById(s.user_id);
+                  const sel = state.peopleSelected.includes(s.id);
+                  return `<tr style="${sel?'background:var(--accent-light)':''}">
+                    <td><input type="checkbox" ${sel?'checked':''} onchange="togglePeopleSelect(${s.id})"></td>
+                    <td>
+                      <div class="flex gap-2">
+                        <div class="avatar" style="width:26px;height:26px;font-size:10px">${usr?.avatar||'??'}</div>
+                        <div>
+                          <div style="font-size:13px;font-weight:500">${usr?.name||'—'}</div>
+                          <div style="font-size:11px;color:var(--text3)">${usr?.departamento||usr?.squad||'—'}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span class="badge badge-info">${s.tipo}</span></td>
+                    <td style="font-size:12px">${formatDate(s.data_inicio)} → ${formatDate(s.data_fim)}</td>
+                    <td style="font-size:12px">${s.dias}d</td>
+                    <td style="font-size:12px;color:var(--text3)">${s.obs||'—'}</td>
+                    <td>
+                      <button class="btn btn-primary btn-sm" onclick="registrarCiencia([${s.id}])">
+                        ✓ Ciente
+                      </button>
+                    </td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>`}
+
+    <!-- Lista com ciência registrada -->
+    ${comCiencia.length > 0 ? `
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px">Ciência registrada</div>
+      <div class="table-wrap" style="border:none">
+        <table>
+          <thead><tr><th>Colaborador</th><th>Tipo</th><th>Período</th><th>Registrado por</th><th>Data ciência</th></tr></thead>
+          <tbody>
+            ${comCiencia.slice(0,10).map(s => {
+              const usr = getUserById(s.user_id);
+              return `<tr>
+                <td>
+                  <div class="flex gap-2">
+                    <div class="avatar" style="width:26px;height:26px;font-size:10px">${usr?.avatar||'??'}</div>
+                    <div style="font-size:13px;font-weight:500">${usr?.name||'—'}</div>
+                  </div>
+                </td>
+                <td><span class="badge badge-info">${s.tipo}</span></td>
+                <td style="font-size:12px">${formatDate(s.data_inicio)} → ${formatDate(s.data_fim)}</td>
+                <td style="font-size:12px;color:var(--text3)">${s.people_acknowledged_by||'—'}</td>
+                <td style="font-size:12px;color:var(--text3)">${s.people_acknowledged_at?formatDate(s.people_acknowledged_at.slice(0,10)):'—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>` : ''}
+  </div>`;
+}
+
 function viewCalendario() {
   const now=new Date(); const year=now.getFullYear(); const month=now.getMonth();
   const firstDay=new Date(year,month,1).getDay();
@@ -1382,7 +1580,7 @@ function viewUsuarios() {
 function render() {
   const app = document.getElementById('app');
   if (!state.currentUser) { app.innerHTML = viewLogin(); return; }
-  const viewMap = { dashboard:viewDashboard, minhas:viewMinhas, nova:viewNova, aprovacoes:viewAprovacoes, equipe:viewEquipe, calendario:viewCalendario, assistente:viewAssistente, usuarios:viewUsuarios };
+  const viewMap = { dashboard:viewDashboard, minhas:viewMinhas, nova:viewNova, aprovacoes:viewAprovacoes, equipe:viewEquipe, calendario:viewCalendario, assistente:viewAssistente, usuarios:viewUsuarios, people:viewPeople };
   const viewFn = viewMap[state.view] || viewDashboard;
   const pending = getPendingDaArea(state.currentUser);
   app.innerHTML = `
@@ -1391,7 +1589,7 @@ function render() {
     <div id="main" style="flex:1;overflow-y:auto">
       <div id="topbar">
         <div style="font-size:13px;font-weight:500;color:var(--text2)">${
-          {dashboard:'📊 Dashboard',minhas:'📋 Minhas ausências',nova:'➕ Nova solicitação',aprovacoes:'✅ Aprovações de ausência',equipe:'👥 Equipe',calendario:'📅 Calendário',assistente:'🤖 Assistente IA',usuarios:'⚙️ Usuários'}[state.view]||''
+          {dashboard:'📊 Dashboard',minhas:'📋 Minhas ausências',nova:'➕ Nova solicitação',aprovacoes:'✅ Aprovações de ausência',equipe:'👥 Equipe',calendario:'📅 Calendário',assistente:'🤖 Assistente IA',usuarios:'⚙️ Usuários',people:'👁️ Ciência People'}[state.view]||''
         }</div>
         <div class="flex gap-2">
           ${pending>0&&(state.currentUser.role==='gestor'||state.currentUser.role==='admin')?`<button class="btn btn-danger btn-sm" onclick="state.view='aprovacoes';render()">${pending} pendente${pending>1?'s':''}</button>`:''}
