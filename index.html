@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GestAus — Gestão de Ausências</title>
+<title>GestAus — Gestão de Disponibilidade</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -386,13 +386,13 @@ async function criarSolicitacao() {
   const dias = calcDias(dataInicio, dataFim);
   if (dias <= 0) { showToast('Data fim deve ser após data início', 'error'); return; }
   const saldo = getSaldo(state.currentUser.id);
-  if (saldo.saldo < dias) { showToast(`Saldo insuficiente. Disponível: ${saldo.saldo} dias`, 'error'); return; }
+  if (saldo.saldo < dias) { showToast(`Limite insuficiente. Disponível: ${saldo.saldo} dias`, 'error'); return; }
   const overlap = state.solicitacoes.find(s =>
     s.user_id === state.currentUser.id &&
     ['Pendente','Aprovada'].includes(s.status) &&
     !(s.data_fim < dataInicio || s.data_inicio > dataFim)
   );
-  if (overlap) { showToast('Conflito de datas com solicitação existente', 'error'); return; }
+  if (overlap) { showToast('Conflito de datas com ausência já registrada', 'error'); return; }
   try {
     await dbCriarSolicitacao({
       user_id: state.currentUser.id, tipo,
@@ -402,7 +402,7 @@ async function criarSolicitacao() {
     });
     state.newReq = { tipo: 'Férias', dataInicio: '', dataFim: '', obs: '' };
     state.modal = null;
-    showToast('Solicitação enviada para aprovação ✓');
+    showToast('Ausência enviada para aprovação ✓');
   } catch(e) { showToast('Erro ao criar solicitação', 'error'); }
 }
 
@@ -410,7 +410,7 @@ async function aprovar(id) {
   try {
     await dbAtualizarSolicitacao(id, { status: 'Aprovada', obs: state.approvalObs || 'Aprovado' });
     state.approvalModal = null; state.approvalObs = '';
-    showToast('Solicitação aprovada ✓');
+    showToast('Ausência aprovada ✓');
   } catch(e) { showToast('Erro ao aprovar', 'error'); }
 }
 
@@ -418,14 +418,14 @@ async function recusar(id) {
   try {
     await dbAtualizarSolicitacao(id, { status: 'Recusada', obs: state.approvalObs || 'Recusado pelo gestor' });
     state.approvalModal = null; state.approvalObs = '';
-    showToast('Solicitação recusada', 'error');
+    showToast('Ausência recusada', 'error');
   } catch(e) { showToast('Erro ao recusar', 'error'); }
 }
 
 async function cancelar(id) {
   try {
     await dbAtualizarSolicitacao(id, { status: 'Cancelada' });
-    showToast('Solicitação cancelada');
+    showToast('Ausência cancelada');
   } catch(e) { showToast('Erro ao cancelar', 'error'); }
 }
 
@@ -494,7 +494,7 @@ function viewLogin() {
       <div class="login-brand">
         ${LOGO_LG}
         <div class="login-brand-name">GestAus</div>
-        <div class="login-brand-sub">Gestão de Ausências · PJ</div>
+        <div class="login-brand-sub">Gestão de Disponibilidade · PJ</div>
       </div>
       <div class="login-card">
         <div class="login-card-title">Acesse sua conta</div>
@@ -516,7 +516,10 @@ function viewLogin() {
           ${state.loginLoading ? '<span class="dot-pulse"></span> Entrando...' : 'Entrar'}
         </button>
       </div>
-      <div class="login-footer">© ${new Date().getFullYear()} GestAus · Gestão de Ausências PJ · Uso interno</div>
+      <div class="login-footer">© ${new Date().getFullYear()} GestAus · Gestão de Disponibilidade PJ · Uso interno</div>
+      <div style="margin-top:10px;font-size:10px;color:var(--text3);text-align:center;max-width:380px;line-height:1.5;opacity:0.8">
+        Este sistema é utilizado para gestão de disponibilidade de prestadores de serviço (PJ), não caracterizando vínculo empregatício.
+      </div>
     </div>
   </div>`;
 }
@@ -529,7 +532,7 @@ function viewSidebar() {
     <div class="sidebar-brand" style="padding:16px 16px 14px">
       <div style="display:flex;align-items:center;gap:10px">
         ${LOGO_SM}
-        <div><div class="brand-name">GestAus</div><div class="brand-sub">Gestão de Ausências · PJ</div></div>
+        <div><div class="brand-name">GestAus</div><div class="brand-sub">Gestão de Disponibilidade · PJ</div></div>
       </div>
     </div>
     <div class="sidebar-user">
@@ -542,11 +545,11 @@ function viewSidebar() {
     <nav>
       <div class="nav-section">Menu</div>
       ${navItem('dashboard','📊','Dashboard')}
-      ${navItem('minhas','📋','Minhas Solicitações')}
-      ${(u.role==='gestor'||u.role==='admin') ? navItem('aprovacoes','✅','Aprovações', pending) : ''}
+      ${navItem('minhas','📋','Minhas Ausências')}
+      ${(u.role==='gestor'||u.role==='admin') ? navItem('aprovacoes','✅','Aprovações de ausência', pending) : ''}
       ${navItem('equipe','👥','Equipe')}
       ${navItem('calendario','📅','Calendário')}
-      ${navItem('nova','➕','Nova Solicitação')}
+      ${navItem('nova','➕','Nova Solicitação de Ausência')}
       ${u.role==='admin' ? `<div class="nav-section">Admin</div>${navItem('usuarios','⚙️','Usuários')}` : ''}
       <div class="nav-section">IA</div>
       ${navItem('assistente','🤖','Assistente IA')}
@@ -579,17 +582,17 @@ function viewDashboard() {
         <button class="btn btn-primary" onclick="state.view='nova';render()">+ Nova solicitação</button>
       </div>
       <div class="stat-grid">
-        <div class="stat-card"><div class="stat-label">Saldo disponível</div><div class="stat-value stat-green">${saldo.saldo}</div><div class="stat-sub">de ${saldo.diasCiclo} dias no ciclo</div><div class="progress-bar" style="margin-top:8px"><div class="progress-fill ${barCls}" style="width:${pct}%"></div></div></div>
-        <div class="stat-card"><div class="stat-label">Dias usados</div><div class="stat-value stat-amber">${saldo.usados}</div><div class="stat-sub">no ciclo atual</div></div>
-        <div class="stat-card"><div class="stat-label">Minhas solicitações</div><div class="stat-value stat-blue">${minhasSols.length}</div><div class="stat-sub">${minhasSols.filter(s=>s.status==='Pendente').length} pendente(s)</div></div>
+        <div class="stat-card"><div class="stat-label">Limite disponível</div><div class="stat-value stat-green">${saldo.saldo}</div><div class="stat-sub">de ${saldo.diasCiclo} dias no período</div><div class="progress-bar" style="margin-top:8px"><div class="progress-fill ${barCls}" style="width:${pct}%"></div></div></div>
+        <div class="stat-card"><div class="stat-label">Dias utilizados</div><div class="stat-value stat-amber">${saldo.usados}</div><div class="stat-sub">no período atual</div></div>
+        <div class="stat-card"><div class="stat-label">Minhas ausências</div><div class="stat-value stat-blue">${minhasSols.length}</div><div class="stat-sub">${minhasSols.filter(s=>s.status==='Pendente').length} pendente(s)</div></div>
         <div class="stat-card"><div class="stat-label">Status ciclo</div><div style="margin-top:8px"><span class="badge ${st.cls}">${st.label}</span></div><div class="stat-sub" style="margin-top:6px">${pct}% utilizado</div></div>
       </div>
       <div class="card mb-6">
         <div class="flex-between mb-4">
-          <div><div class="card-title">Minhas últimas solicitações</div><div class="card-sub">Histórico recente</div></div>
+          <div><div class="card-title">Minhas últimas ausências</div><div class="card-sub">Histórico recente de ausências</div></div>
           <button class="btn btn-secondary btn-sm" onclick="state.view='minhas';render()">Ver todas</button>
         </div>
-        ${minhasSols.length===0?`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma solicitação ainda</div></div>`:`
+        ${minhasSols.length===0?`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma ausência registrada ainda</div></div>`:`
         <div class="table-wrap"><table>
           <thead><tr><th>Tipo</th><th>Período</th><th>Dias</th><th>Status</th><th>Obs</th></tr></thead>
           <tbody>${minhasSols.slice(0,5).map(s=>`<tr>
@@ -624,9 +627,9 @@ function viewDashboard() {
     const proximas30=state.solicitacoes.filter(s=>['Aprovada','Pendente'].includes(s.status)&&s.data_inicio>=hoje).length;
     const semFerias=todosUsers.filter(x=>!state.solicitacoes.some(s=>s.user_id===x.id&&s.tipo==='Férias'&&['Aprovada','Realizada','Pendente'].includes(s.status)));
     const alertas=[];
-    if(pendentes>0) alertas.push({tipo:'warn',msg:pendentes+' solicitação(ões) pendente(s) de aprovação.'});
-    if(criticos>0) alertas.push({tipo:'warn',msg:criticos+' colaborador(es) com saldo ≥90% utilizado.'});
-    if(semFerias.length>0) alertas.push({tipo:'info',msg:semFerias.length+' colaborador(es) sem férias registradas.'});
+    if(pendentes>0) alertas.push({tipo:'warn',msg:pendentes+' ausência(s) pendente(s) de aprovação.'});
+    if(criticos>0) alertas.push({tipo:'warn',msg:criticos+' prestador(es) com limite ≥90% utilizado.'});
+    if(semFerias.length>0) alertas.push({tipo:'info',msg:semFerias.length+' colaborador(es) sem ausências registradas.'});
     const saudeDepts=depts.map(dept=>{
       const ids=todosUsers.filter(x=>(x.departamento||x.squad)===dept).map(x=>x.id);
       const sols=state.solicitacoes.filter(s=>ids.includes(s.user_id));
@@ -648,10 +651,10 @@ function viewDashboard() {
         <div class="stat-card"><div class="stat-label">Aprovadas</div><div class="stat-value stat-blue">${aprovadas}</div><div class="stat-sub">${recusadas} recusada(s)</div></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
-        <div class="stat-card"><div class="stat-label">Saldo crítico</div><div class="stat-value ${criticos>0?'stat-red':'stat-green'}">${criticos}</div><div class="stat-sub">colaborador(es) ≥90%</div></div>
-        <div class="stat-card"><div class="stat-label">Ausências próximas</div><div class="stat-value stat-amber">${proximas30}</div><div class="stat-sub">a partir de hoje</div></div>
+        <div class="stat-card"><div class="stat-label">Limite crítico</div><div class="stat-value ${criticos>0?'stat-red':'stat-green'}">${criticos}</div><div class="stat-sub">prestador(es) ≥90% do limite</div></div>
+        <div class="stat-card"><div class="stat-label">Próximas ausências</div><div class="stat-value stat-amber">${proximas30}</div><div class="stat-sub">a partir de hoje</div></div>
         <div class="stat-card"><div class="stat-label">Total solicitações</div><div class="stat-value stat-blue">${state.solicitacoes.length}</div><div class="stat-sub">histórico completo</div></div>
-        <div class="stat-card"><div class="stat-label">Sem férias registradas</div><div class="stat-value ${semFerias.length>0?'stat-amber':'stat-green'}">${semFerias.length}</div><div class="stat-sub">colaborador(es)</div></div>
+        <div class="stat-card"><div class="stat-label">Sem ausências registradas</div><div class="stat-value ${semFerias.length>0?'stat-amber':'stat-green'}">${semFerias.length}</div><div class="stat-sub">colaborador(es)</div></div>
       </div>
       ${alertas.length>0?alertas.map(a=>`<div class="alert alert-${a.tipo}" style="margin-bottom:8px">${a.tipo==='warn'?'⚠️':'ℹ️'} ${a.msg}</div>`).join(''):`<div class="alert alert-success" style="margin-bottom:16px">✅ Nenhum alerta crítico.</div>`}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
@@ -676,7 +679,7 @@ function viewDashboard() {
               if(!usr||usr.status==='inativo') return;
               const s=getSaldo(c.user_id);
               const pct=Math.round(s.usados/s.diasCiclo*100);
-              if(pct>=90) itens.push({usr,motivo:'Saldo crítico ('+pct+'%)'});
+              if(pct>=90) itens.push({usr,motivo:'Limite crítico ('+pct+'%)'});
             });
             if(itens.length===0) return `<div style="font-size:13px;color:var(--text3)">Nenhum item requer atenção.</div>`;
             return itens.slice(0,6).map(i=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
@@ -690,7 +693,7 @@ function viewDashboard() {
       </div>
       <div class="card">
         <div class="flex-between mb-4">
-          <div><div class="card-title">Movimentações recentes</div>
+          <div><div class="card-title">Ausências registradas</div>
           <div class="card-sub">${solsFiltradas.length} registro(s)</div></div>
         </div>
         <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:var(--radius-sm)">
@@ -716,7 +719,7 @@ function viewDashboard() {
               <option value="Folga"  ${adTipo==='Folga' ?'selected':''}>Folga</option>
             </select></div>
         </div>
-        ${solsFiltradas.length===0?`<div class="empty-state" style="padding:24px"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma solicitação encontrada</div></div>`:`
+        ${solsFiltradas.length===0?`<div class="empty-state" style="padding:24px"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma ausência registrada encontrada</div></div>`:`
         <div class="table-wrap"><table>
           <thead><tr><th>Colaborador</th><th>Departamento</th><th>Tipo</th><th>Período</th><th>Dias</th><th>Status</th><th>Criado em</th></tr></thead>
           <tbody>${solsFiltradas.slice(0,15).map(s=>{
@@ -767,13 +770,13 @@ function viewDashboard() {
       <div class="stat-card"><div class="stat-label">Equipe no departamento</div><div class="stat-value stat-blue">${equipe.length+1}</div><div class="stat-sub">incluindo você</div></div>
       <div class="stat-card"><div class="stat-label">Pendentes de aprovação</div><div class="stat-value ${pending>0?'stat-red':'stat-green'}">${pending}</div><div class="stat-sub">aguardando sua decisão</div></div>
       <div class="stat-card"><div class="stat-label">Próximas ausências</div><div class="stat-value stat-amber">${proximas.length}</div><div class="stat-sub">agendadas na equipe</div></div>
-      <div class="stat-card"><div class="stat-label">Saldo crítico</div><div class="stat-value ${criticos>0?'stat-red':'stat-green'}">${criticos}</div><div class="stat-sub">colaborador(es) ≥90%</div></div>
+      <div class="stat-card"><div class="stat-label">Limite crítico</div><div class="stat-value ${criticos>0?'stat-red':'stat-green'}">${criticos}</div><div class="stat-sub">prestador(es) ≥90% do limite</div></div>
     </div>
-    ${pending>0?`<div class="alert alert-warn" style="display:flex;align-items:center;justify-content:space-between"><span>⚠️ <strong>${pending}</strong> solicitação(ões) aguardando aprovação.</span><button class="btn btn-secondary btn-sm" onclick="state.view='aprovacoes';render()">Revisar agora →</button></div>`:`<div class="alert alert-success">✅ Nenhuma solicitação pendente de aprovação.</div>`}
+    ${pending>0?`<div class="alert alert-warn" style="display:flex;align-items:center;justify-content:space-between"><span>⚠️ <strong>${pending}</strong> ausência(s) aguardando aprovação.</span><button class="btn btn-secondary btn-sm" onclick="state.view='aprovacoes';render()">Revisar agora →</button></div>`:`<div class="alert alert-success">✅ Nenhuma ausência registrada pendente de aprovação.</div>`}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
       <div class="card">
         <div class="card-title" style="margin-bottom:14px">Minha situação</div>
-        <div class="flex-between" style="margin-bottom:6px"><span style="font-size:13px;color:var(--text2)">Saldo disponível</span><strong style="font-size:18px;color:var(--accent)">${meuSaldo.saldo}d</strong></div>
+        <div class="flex-between" style="margin-bottom:6px"><span style="font-size:13px;color:var(--text2)">Limite disponível</span><strong style="font-size:18px;color:var(--accent)">${meuSaldo.saldo}d</strong></div>
         <div class="progress-bar" style="margin-bottom:4px"><div class="progress-fill ${meuBarCls}" style="width:${meuPct}%"></div></div>
         <div class="flex-between" style="margin-bottom:12px"><span style="font-size:11px;color:var(--text3)">${meuSaldo.usados}d usados</span><span style="font-size:11px;color:var(--text3)">${meuSaldo.diasCiclo}d no ciclo</span></div>
         <span class="badge ${meuSt.cls}">${meuSt.label}</span>
@@ -789,7 +792,7 @@ function viewDashboard() {
     </div>
     <div class="card">
       <div class="flex-between mb-4">
-        <div><div class="card-title">Solicitações recentes do departamento</div><div class="card-sub">${solsDept.length} no total · ${meuDept}</div></div>
+        <div><div class="card-title">Ausências recentes do departamento</div><div class="card-sub">${solsDept.length} no total · ${meuDept}</div></div>
         <button class="btn btn-secondary btn-sm" onclick="state.view='aprovacoes';render()">Ver aprovações →</button>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:var(--radius-sm)">
@@ -798,7 +801,7 @@ function viewDashboard() {
         <div><label>De</label><input type="date" value="${dfInicio}" onchange="state.dashFiltroInicio=this.value;render()"></div>
         <div><label>Até</label><input type="date" value="${dfFim}" onchange="state.dashFiltroFim=this.value;render()"></div>
       </div>
-      ${solsFiltradas.length===0?`<div class="empty-state" style="padding:24px"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma solicitação encontrada</div></div>`:`
+      ${solsFiltradas.length===0?`<div class="empty-state" style="padding:24px"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma ausência registrada encontrada</div></div>`:`
       <div class="table-wrap"><table>
         <thead><tr><th>Colaborador</th><th>Tipo</th><th>Período</th><th>Dias</th><th>Status</th><th>Observação</th></tr></thead>
         <tbody>${solsFiltradas.slice(0,10).map(s=>{const usr=getUserById(s.user_id);return `<tr>
@@ -819,10 +822,10 @@ function viewMinhas() {
   const sols=state.solicitacoes.filter(s=>s.user_id===u.id);
   return `<div id="content">
     <div class="page-header flex-between" style="margin-bottom:32px">
-      <div><div class="page-title">Minhas Solicitações</div><div class="page-desc">Histórico completo</div></div>
+      <div><div class="page-title">Minhas Ausências</div><div class="page-desc">Histórico completo de ausências</div></div>
       <button class="btn btn-primary" onclick="state.view='nova';render()">+ Nova solicitação</button>
     </div>
-    ${sols.length===0?`<div class="empty-state card" style="padding:56px 20px"><div class="empty-icon">📋</div><div class="empty-text" style="margin-bottom:8px">Nenhuma solicitação ainda</div><div class="empty-sub">Clique em "+ Nova solicitação" para registrar férias ou folga</div></div>`:`
+    ${sols.length===0?`<div class="empty-state card" style="padding:56px 20px"><div class="empty-icon">📋</div><div class="empty-text" style="margin-bottom:8px">Nenhuma ausência registrada ainda</div><div class="empty-sub">Clique em "+ Nova solicitação" para registrar férias ou folga</div></div>`:`
     <div class="table-wrap"><table>
       <thead><tr><th>Tipo</th><th>Data início</th><th>Data fim</th><th>Dias</th><th>Status</th><th>Observação</th><th>Ações</th></tr></thead>
       <tbody>${sols.map(s=>`<tr>
@@ -866,7 +869,7 @@ function viewNova() {
         el.className='alert ' + (apos>=0?'alert-info':'alert-danger');
         el.innerHTML = d>0
           ? '📅 Total: <strong>'+d+' dias corridos</strong> — '
-            +(apos>=0?'saldo após: '+apos+' dias':'<strong>Saldo insuficiente!</strong>')
+            +(apos>=0?'limite após: '+apos+' dias':'<strong>Limite insuficiente!</strong>')
           : '';
       } else {
         el.style.display='none';
@@ -878,8 +881,8 @@ function viewNova() {
   return \`<div id="content">
     <script>\${updateDatasScript}<\/script>
     <div class="page-header" style="margin-bottom:24px">
-      <div class="page-title">Nova Solicitação</div>
-      <div class="page-desc">Férias ou folga — o saldo é o mesmo</div>
+      <div class="page-title">Nova Solicitação de Ausência</div>
+      <div class="page-desc">Ausência programada</div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start">
@@ -889,8 +892,8 @@ function viewNova() {
         <div class="form-group">
           <label>Tipo de ausência</label>
           <select onchange="state.newReq.tipo=this.value;render()">
-            <option value="Férias" \${state.newReq.tipo==='Férias'?'selected':''}>🏖️ Férias</option>
-            <option value="Folga"  \${state.newReq.tipo==='Folga' ?'selected':''}>🌤️ Folga</option>
+            <option value="Férias" \${state.newReq.tipo==='Férias'?'selected':''}>📅 Ausência programada</option>
+            <option value="Folga"  \${state.newReq.tipo==='Folga' ?'selected':''}>📅 Ausência programada</option>
           </select>
         </div>
 
@@ -913,7 +916,7 @@ function viewNova() {
 
         <div id="nova-preview" style="margin-top:14px;display:\${dias>0?'block':'none'}"
           class="alert \${dias>0?(saldoApos>=0?'alert-info':'alert-danger'):'alert-info'}">
-          \${dias>0?'📅 Total: <strong>'+dias+' dias corridos</strong> — '+(saldoApos>=0?'saldo após: '+saldoApos+' dias':'<strong>Saldo insuficiente!</strong>'):''}
+          \${dias>0?'📅 Total: <strong>'+dias+' dias corridos</strong> — '+(saldoApos>=0?'limite após: '+saldoApos+' dias':'<strong>Limite insuficiente!</strong>'):''}
         </div>
 
         <div class="form-group" style="margin-top:16px">
@@ -921,7 +924,7 @@ function viewNova() {
           <textarea placeholder="Informações adicionais para o gestor..."
             oninput="state.newReq.obs=this.value"
             style="min-height:80px">\${state.newReq.obs}</textarea>
-          <div class="form-hint">Alinhamentos prévios, motivo, etc.</div>
+          <div class="form-hint">Alinhamentos prévios, justificativa, etc.</div>
         </div>
 
         <div class="flex gap-2" style="justify-content:flex-end;margin-top:8px">
@@ -956,10 +959,10 @@ function viewNova() {
           <div style="font-size:12px;font-weight:600;color:var(--info);margin-bottom:8px">ℹ️ Regras</div>
           <ul style="font-size:12px;color:var(--info);line-height:1.8;padding-left:16px">
             <li>Dias são <strong>corridos</strong>, não úteis</li>
-            <li>Folgas e férias usam o mesmo saldo</li>
+            <li>Todas as ausências usam o mesmo limite</li>
             <li>Solicite com <strong>20 dias</strong> de antecedência</li>
-            <li>Aguardar aprovação do gestor</li>
-            <li>Saldo não acumula para o ano seguinte</li>
+            <li>Aguardar aprovação do gestor responsável</li>
+            <li>Limite não acumula para o período seguinte</li>
           </ul>
         </div>
       </div>
@@ -987,8 +990,8 @@ function viewAprovacoes() {
   if(filtroFim) pendentes=pendentes.filter(s=>s.data_fim<=filtroFim);
   const totalPendentes=solsDaArea.filter(s=>s.status==='Pendente').length;
   return `<div id="content">
-    <div class="page-header"><div class="page-title">Aprovações${u.role==='gestor'?' — '+(u.departamento||u.squad):''}</div>
-    <div class="page-desc">${totalPendentes} solicitação(ões) pendente(s)</div></div>
+    <div class="page-header"><div class="page-title">Aprovações de ausência${u.role==='gestor'?' — '+(u.departamento||u.squad):''}</div>
+    <div class="page-desc">${totalPendentes} ausência(s) pendente(s)</div></div>
     <div class="card mb-4" style="padding:14px 16px">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;align-items:end">
         <div><label>Colaborador</label><select onchange="state.filtroAprovUser=this.value;render()"><option value="">Todos</option>
@@ -1001,7 +1004,7 @@ function viewAprovacoes() {
         <div><label>Até</label><input type="date" value="${filtroFim}" onchange="state.filtroAprovFim=this.value;render()"></div>
       </div>
     </div>
-    ${pendentes.length===0?`<div class="empty-state card"><div class="empty-icon">✅</div><div class="empty-text">Nenhuma solicitação encontrada</div></div>`:`
+    ${pendentes.length===0?`<div class="empty-state card"><div class="empty-icon">✅</div><div class="empty-text">Nenhuma ausência registrada encontrada</div></div>`:`
     <div style="display:flex;flex-direction:column;gap:12px">
       ${pendentes.map(s=>{
         const usr=getUserById(s.user_id);
@@ -1170,7 +1173,7 @@ function viewCalendario() {
     return (s.data_inicio.slice(0,7)===m||s.data_fim.slice(0,7)===m)&&['Aprovada','Realizada','Pendente'].includes(s.status);
   });
   return `<div id="content">
-    <div class="page-header"><div class="page-title">Calendário da equipe</div><div class="page-desc">${monthName}</div></div>
+    <div class="page-header"><div class="page-title">Calendário de disponibilidade</div><div class="page-desc">${monthName}</div></div>
     <div style="display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start">
       <div class="card">
         <div class="calendar-grid" style="margin-bottom:4px">${days.map(d=>`<div class="cal-header">${d}</div>`).join('')}</div>
@@ -1211,7 +1214,7 @@ function viewCalendario() {
 function viewAssistente() {
   const u=state.currentUser; const saldo=getSaldo(u.id);
   const context=`Contexto: Usuário ${u.name} (${u.role}), Departamento ${u.departamento||u.squad}. Saldo: ${saldo.saldo}/${saldo.diasCiclo} dias. Regras: PJ, 30 dias/ciclo corridos, folgas e férias no mesmo saldo, não acumula.`;
-  const suggestions=['Quando devo tirar minhas férias para não perder o saldo?','Quais são as regras de folga da empresa?','Posso dividir minhas férias em vários períodos?','Como funciona o cálculo de dias corridos?'];
+  const suggestions=['Quando devo programar ausências para não perder o limite?','Quais são as regras de ausência programada?','Posso dividir minhas ausências em vários períodos?','Como funciona o cálculo de dias corridos?'];
   return `<div id="content">
     <div class="page-header"><div class="page-title">Assistente IA</div><div class="page-desc">Tire dúvidas sobre férias, folgas e regras</div></div>
     ${state.aiResponse?`<div class="ai-bubble mb-6"><div class="ai-header">🤖 Resposta do assistente</div><div style="white-space:pre-wrap">${state.aiResponse}</div></div>`:''}
@@ -1388,7 +1391,7 @@ function render() {
     <div id="main" style="flex:1;overflow-y:auto">
       <div id="topbar">
         <div style="font-size:13px;font-weight:500;color:var(--text2)">${
-          {dashboard:'📊 Dashboard',minhas:'📋 Minhas solicitações',nova:'➕ Nova solicitação',aprovacoes:'✅ Aprovações',equipe:'👥 Equipe',calendario:'📅 Calendário',assistente:'🤖 Assistente IA',usuarios:'⚙️ Usuários'}[state.view]||''
+          {dashboard:'📊 Dashboard',minhas:'📋 Minhas ausências',nova:'➕ Nova solicitação',aprovacoes:'✅ Aprovações de ausência',equipe:'👥 Equipe',calendario:'📅 Calendário',assistente:'🤖 Assistente IA',usuarios:'⚙️ Usuários'}[state.view]||''
         }</div>
         <div class="flex gap-2">
           ${pending>0&&(state.currentUser.role==='gestor'||state.currentUser.role==='admin')?`<button class="btn btn-danger btn-sm" onclick="state.view='aprovacoes';render()">${pending} pendente${pending>1?'s':''}</button>`:''}
