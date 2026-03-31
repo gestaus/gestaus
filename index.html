@@ -842,51 +842,137 @@ function viewNova() {
   const dias=calcDias(state.newReq.dataInicio,state.newReq.dataFim);
   const saldoApos=saldo.saldo-dias;
   const st=getSaldoStatus(saldo.saldo,saldo.usados,saldo.diasCiclo);
-  return `<div id="content">
-    <div class="page-header"><div class="page-title">Nova Solicitação</div><div class="page-desc">Férias ou folga — o saldo é o mesmo</div></div>
-    <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start">
+  const barCls=saldo.usados/saldo.diasCiclo>=0.9?'progress-red':'progress-green';
+  const barPct=Math.min(100,Math.round(saldo.usados/saldo.diasCiclo*100));
+
+  // Função local que atualiza estado e recalcula preview SEM re-render completo
+  // evita que o date picker feche ao navegar entre meses
+  const updateDatasScript = `
+    function _novaSetData(field, val) {
+      state.newReq[field] = val;
+      const ini = state.newReq.dataInicio;
+      const fim = state.newReq.dataFim;
+      if (!ini || !fim) {
+        document.getElementById('nova-preview').style.display='none';
+        document.getElementById('nova-btn-enviar').disabled=true;
+        return;
+      }
+      const d = Math.round((new Date(fim)-new Date(ini))/86400000)+1;
+      const saldoAtual = ${saldo.saldo};
+      const apos = saldoAtual - d;
+      const el = document.getElementById('nova-preview');
+      if (d > 0) {
+        el.style.display='block';
+        el.className='alert ' + (apos>=0?'alert-info':'alert-danger');
+        el.innerHTML = d>0
+          ? '📅 Total: <strong>'+d+' dias corridos</strong> — '
+            +(apos>=0?'saldo após: '+apos+' dias':'<strong>Saldo insuficiente!</strong>')
+          : '';
+      } else {
+        el.style.display='none';
+      }
+      document.getElementById('nova-btn-enviar').disabled = (d<=0||apos<0);
+    }
+  `;
+
+  return \`<div id="content">
+    <script>\${updateDatasScript}<\/script>
+    <div class="page-header" style="margin-bottom:24px">
+      <div class="page-title">Nova Solicitação</div>
+      <div class="page-desc">Férias ou folga — o saldo é o mesmo</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start">
+
+      <!-- Formulário principal -->
       <div class="card">
-        <div class="form-group"><label>Tipo de ausência</label>
-          <select oninput="state.newReq.tipo=this.value;render()">
-            <option value="Férias" ${state.newReq.tipo==='Férias'?'selected':''}>🏖️ Férias</option>
-            <option value="Folga"  ${state.newReq.tipo==='Folga' ?'selected':''}>🌤️ Folga</option>
-          </select></div>
-        <div class="form-row">
-          <div class="form-group"><label>Data de início</label><input type="date" value="${state.newReq.dataInicio}" oninput="state.newReq.dataInicio=this.value;render()"></div>
-          <div class="form-group"><label>Data de fim</label><input type="date" value="${state.newReq.dataFim}" oninput="state.newReq.dataFim=this.value;render()"></div>
+        <div class="form-group">
+          <label>Tipo de ausência</label>
+          <select onchange="state.newReq.tipo=this.value;render()">
+            <option value="Férias" \${state.newReq.tipo==='Férias'?'selected':''}>🏖️ Férias</option>
+            <option value="Folga"  \${state.newReq.tipo==='Folga' ?'selected':''}>🌤️ Folga</option>
+          </select>
         </div>
-        ${dias>0?`<div class="alert alert-info">📅 Total: <strong>${dias} dias corridos</strong> — ${saldoApos>=0?`saldo após: ${saldoApos} dias`:'<strong style="color:var(--danger)">Saldo insuficiente!</strong>'}</div>`:''}
-        <div class="form-group"><label>Observação (opcional)</label>
-          <textarea placeholder="Informações adicionais para o gestor..." oninput="state.newReq.obs=this.value">${state.newReq.obs}</textarea>
-          <div class="form-hint">Alinhamentos prévios, motivo, etc.</div></div>
-        <div class="flex gap-2" style="justify-content:flex-end">
+
+        <div class="form-row" style="gap:16px">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Data de início</label>
+            <input type="date" id="nova-inicio"
+              value="\${state.newReq.dataInicio}"
+              onchange="_novaSetData('dataInicio', this.value)"
+              style="font-size:14px;padding:10px 12px">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Data de fim</label>
+            <input type="date" id="nova-fim"
+              value="\${state.newReq.dataFim}"
+              onchange="_novaSetData('dataFim', this.value)"
+              style="font-size:14px;padding:10px 12px">
+          </div>
+        </div>
+
+        <div id="nova-preview" style="margin-top:14px;display:\${dias>0?'block':'none'}"
+          class="alert \${dias>0?(saldoApos>=0?'alert-info':'alert-danger'):'alert-info'}">
+          \${dias>0?'📅 Total: <strong>'+dias+' dias corridos</strong> — '+(saldoApos>=0?'saldo após: '+saldoApos+' dias':'<strong>Saldo insuficiente!</strong>'):''}
+        </div>
+
+        <div class="form-group" style="margin-top:16px">
+          <label>Observação (opcional)</label>
+          <textarea placeholder="Informações adicionais para o gestor..."
+            oninput="state.newReq.obs=this.value"
+            style="min-height:80px">\${state.newReq.obs}</textarea>
+          <div class="form-hint">Alinhamentos prévios, motivo, etc.</div>
+        </div>
+
+        <div class="flex gap-2" style="justify-content:flex-end;margin-top:8px">
           <button class="btn btn-secondary" onclick="state.view='dashboard';render()">Cancelar</button>
-          <button class="btn btn-primary" onclick="criarSolicitacao()" ${dias<=0||saldoApos<0?'disabled':''}>Enviar solicitação</button>
+          <button id="nova-btn-enviar" class="btn btn-primary"
+            onclick="criarSolicitacao()"
+            \${dias<=0||saldoApos<0?'disabled':''}>
+            Enviar solicitação
+          </button>
         </div>
       </div>
+
+      <!-- Painel lateral: saldo + regras -->
       <div style="display:flex;flex-direction:column;gap:14px">
         <div class="card">
-          <div class="card-title">Seu saldo</div>
-          <div style="margin-top:12px">
-            <div class="flex-between" style="margin-bottom:6px"><span style="font-size:13px;color:var(--text2)">Disponível</span><strong style="font-size:18px;color:var(--accent)">${saldo.saldo}d</strong></div>
-            <div class="progress-bar"><div class="progress-fill ${saldo.usados/saldo.diasCiclo>=0.9?'progress-red':'progress-green'}" style="width:${Math.min(100,Math.round(saldo.usados/saldo.diasCiclo*100))}%"></div></div>
-            <div class="flex-between" style="margin-top:4px"><span style="font-size:11px;color:var(--text3)">${saldo.usados}d usados</span><span style="font-size:11px;color:var(--text3)">${saldo.diasCiclo}d no ciclo</span></div>
+          <div class="card-title" style="margin-bottom:12px">Seu saldo</div>
+          <div class="flex-between" style="margin-bottom:6px">
+            <span style="font-size:13px;color:var(--text2)">Disponível</span>
+            <strong style="font-size:20px;color:var(--accent)">\${saldo.saldo}d</strong>
           </div>
-          <hr class="divider"><div><span class="badge ${st.cls}">${st.label}</span></div>
+          <div class="progress-bar" style="margin-bottom:6px">
+            <div class="progress-fill \${barCls}" style="width:\${barPct}%"></div>
+          </div>
+          <div class="flex-between" style="margin-bottom:12px">
+            <span style="font-size:11px;color:var(--text3)">\${saldo.usados}d usados</span>
+            <span style="font-size:11px;color:var(--text3)">\${saldo.diasCiclo}d no ciclo</span>
+          </div>
+          <span class="badge \${st.cls}">\${st.label}</span>
         </div>
+
         <div class="card" style="background:var(--info-light);border-color:#bfdbfe">
-          <div style="font-size:12px;font-weight:600;color:var(--info);margin-bottom:6px">ℹ️ Regras</div>
-          <ul style="font-size:12px;color:var(--info);line-height:1.7;padding-left:14px">
+          <div style="font-size:12px;font-weight:600;color:var(--info);margin-bottom:8px">ℹ️ Regras</div>
+          <ul style="font-size:12px;color:var(--info);line-height:1.8;padding-left:16px">
             <li>Dias são <strong>corridos</strong>, não úteis</li>
             <li>Folgas e férias usam o mesmo saldo</li>
-            <li>Solicite com antecedência de 20 dias</li>
+            <li>Solicite com <strong>20 dias</strong> de antecedência</li>
             <li>Aguardar aprovação do gestor</li>
             <li>Saldo não acumula para o ano seguinte</li>
           </ul>
         </div>
       </div>
     </div>
-  </div>`;
+
+    <style>
+      @media(max-width:700px){
+        #content > div > div[style*="grid-template-columns"] {
+          grid-template-columns: 1fr !important;
+        }
+      }
+    </style>
+  </div>\`;
 }
 
 function viewAprovacoes() {
