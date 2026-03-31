@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GestAus — Gestão de Ausências</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg:#f5f4f0;--surface:#fff;--surface2:#f0efe9;--border:#e2e0d8;
+    --text:#1a1916;--text2:#6b6860;--text3:#9c9a92;
+    --accent:#1a5c3a;--accent-light:#e8f5ee;--accent-mid:#2d7a52;
+    --danger:#b91c1c;--danger-light:#fef2f2;
+    --warn:#92400e;--warn-light:#fffbeb;
+    --info:#1e40af;--info-light:#eff6ff;
+    --purple:#5b21b6;--purple-light:#f5f3ff;
+    --radius:10px;--radius-sm:6px;
+    --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+    --shadow-md:0 4px 12px rgba(0,0,0,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
+  #app{display:flex;min-height:100vh}
+  #sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+  #main{flex:1;overflow-y:auto}
+  #topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+  #content{padding:28px;max-width:1100px}
+
+  /* Login */
+  #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#f0f4f1 0%,#e8ede9 50%,#f5f4f0 100%);padding:20px}
+  .login-wrap{display:flex;flex-direction:column;align-items:center;width:100%;max-width:420px}
+  .login-brand{display:flex;flex-direction:column;align-items:center;margin-bottom:28px;gap:10px}
+  .login-brand-name{font-size:26px;font-weight:600;color:var(--accent);letter-spacing:-.8px;line-height:1}
+  .login-brand-sub{font-size:12px;color:var(--text3);letter-spacing:.3px}
+  .login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px 36px 32px;width:100%;box-shadow:0 8px 32px rgba(26,92,58,.08),0 2px 8px rgba(0,0,0,.04)}
+  .login-card-title{font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px}
+  .login-card-sub{font-size:13px;color:var(--text3);margin-bottom:24px}
+  .login-footer{margin-top:20px;font-size:11px;color:var(--text3);text-align:center}
+
+  /* Sidebar */
+  .sidebar-brand{padding:16px 16px 14px;border-bottom:1px solid var(--border)}
+  .brand-name{font-size:16px;font-weight:600;color:var(--accent);letter-spacing:-.3px}
+  .brand-sub{font-size:11px;color:var(--text3);margin-top:2px}
+  .sidebar-user{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+  .avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:600;flex-shrink:0}
+  .user-name{font-size:13px;font-weight:500;line-height:1.3}
+  .user-role{font-size:11px;color:var(--text3)}
+  nav{padding:10px 0;flex:1}
+  .nav-section{padding:8px 16px 4px;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.8px;text-transform:uppercase}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:8px 16px;margin:1px 8px;border-radius:var(--radius-sm);cursor:pointer;color:var(--text2);font-size:13px;transition:all .15s}
+  .nav-item:hover{background:var(--surface2);color:var(--text)}
+  .nav-item.active{background:var(--accent-light);color:var(--accent);font-weight:500}
+  .nav-icon{font-size:15px;width:18px;text-align:center}
+  .nav-badge{margin-left:auto;background:var(--danger);color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px}
+  .sidebar-footer{padding:12px 16px;border-top:1px solid var(--border)}
+
+  /* Forms */
+  .form-group{margin-bottom:16px}
+  label{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:5px}
+  input,select,textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(26,92,58,.08)}
+  textarea{resize:vertical;min-height:80px}
+  .form-hint{font-size:11px;color:var(--text3);margin-top:4px}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+  /* Buttons */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;transition:all .15s;line-height:1.4}
+  .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-mid)}
+  .btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text2)}.btn-secondary:hover{background:var(--surface2);color:var(--text)}
+  .btn-danger{background:var(--danger-light);color:var(--danger);border:1px solid #fecaca}.btn-danger:hover{background:#fee2e2}
+  .btn-sm{padding:5px 11px;font-size:12px}
+  .btn-full{width:100%;justify-content:center;padding:10px}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  /* Cards */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+  .card-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px}
+  .card-sub{font-size:12px;color:var(--text3)}
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+  .stat-label{font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+  .stat-value{font-size:28px;font-weight:600;letter-spacing:-1px;line-height:1}
+  .stat-sub{font-size:11px;color:var(--text3);margin-top:4px}
+  .stat-green{color:var(--accent)}.stat-red{color:var(--danger)}.stat-amber{color:var(--warn)}.stat-blue{color:var(--info)}
+
+  /* Badges */
+  .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+  .badge-pending{background:#fef3c7;color:#92400e}
+  .badge-approved{background:#d1fae5;color:#065f46}
+  .badge-rejected{background:#fee2e2;color:#991b1b}
+  .badge-done{background:#e0e7ff;color:#3730a3}
+  .badge-cancelled{background:var(--surface2);color:var(--text3)}
+  .badge-critical{background:#fee2e2;color:#991b1b}
+  .badge-ok{background:#d1fae5;color:#065f46}
+  .badge-warn{background:#fef3c7;color:#92400e}
+  .badge-info{background:var(--info-light);color:var(--info)}
+
+  /* Table */
+  .table-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border)}
+  table{width:100%;border-collapse:collapse;background:var(--surface)}
+  th{padding:10px 14px;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;text-align:left;border-bottom:1px solid var(--border);background:var(--surface2);white-space:nowrap}
+  td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--surface2)}
+
+  /* Progress */
+  .progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+  .progress-fill{height:100%;border-radius:3px;transition:width .3s}
+  .progress-green{background:var(--accent)}.progress-amber{background:#f59e0b}.progress-red{background:var(--danger)}
+
+  /* Modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+  .modal{background:var(--surface);border-radius:14px;padding:28px;width:520px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-md)}
+  .modal-title{font-size:17px;font-weight:600;margin-bottom:4px}
+  .modal-sub{font-size:13px;color:var(--text3);margin-bottom:24px}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;border-top:1px solid var(--border);padding-top:18px}
+
+  /* Misc */
+  .page-header{margin-bottom:24px}
+  .page-title{font-size:20px;font-weight:600;letter-spacing:-.4px}
+  .page-desc{font-size:13px;color:var(--text3);margin-top:3px}
+  .divider{border:none;border-top:1px solid var(--border);margin:20px 0}
+  .empty-state{text-align:center;padding:48px 20px;color:var(--text3)}
+  .empty-icon{font-size:36px;margin-bottom:12px}
+  .empty-text{font-size:14px;font-weight:500;margin-bottom:4px;color:var(--text2)}
+  .empty-sub{font-size:13px}
+  .alert{padding:12px 16px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:16px;border-left:3px solid}
+  .alert-info{background:var(--info-light);color:var(--info);border-color:var(--info)}
+  .alert-warn{background:var(--warn-light);color:var(--warn);border-color:#f59e0b}
+  .alert-success{background:var(--accent-light);color:var(--accent);border-color:var(--accent)}
+  .alert-danger{background:var(--danger-light);color:var(--danger);border-color:var(--danger)}
+  .flex{display:flex;align-items:center}
+  .flex-between{display:flex;align-items:center;justify-content:space-between}
+  .gap-2{gap:8px}.gap-3{gap:12px}.mb-4{margin-bottom:16px}.mb-6{margin-bottom:24px}
+  .ai-bubble{background:var(--purple-light);border:1px solid #ddd6fe;border-radius:var(--radius);padding:14px 16px;font-size:13px;color:var(--purple);line-height:1.6}
+  .ai-header{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;opacity:.7}
+  .loading{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text3)}
+  .dot-pulse{width:6px;height:6px;background:var(--text3);border-radius:50%;animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+  .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+  .cal-header{text-align:center;padding:6px 0;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+  .cal-day{min-height:36px;padding:4px;border-radius:4px;font-size:12px;cursor:pointer;position:relative}
+  .cal-day.today{background:var(--accent-light);font-weight:600;color:var(--accent)}
+  .cal-day.has-event{background:#dbeafe}
+  .cal-day.other-month{opacity:.3}
+  .cal-day.conflict{background:#fef3c7;outline:1.5px solid #f59e0b}
+  .cal-day.conflict.has-event{background:#fef3c7}
+  .cal-num{margin-bottom:2px}
+  .cal-dot{width:4px;height:4px;border-radius:50%;margin:1px auto}
+  @media(max-width:768px){#sidebar{display:none}.stat-grid{grid-template-columns:repeat(2,1fr)}.form-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="app"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:16px"><div class="spinner"></div><div style="font-size:13px;color:var(--text3)">Carregando...</div></div></div>
+
+<script>
+// ══════════════════════════════════════════
+// SUPABASE — configuração
+// ══════════════════════════════════════════
+const SUPABASE_URL  = 'https://qbyoprtefkdgcnhedxtf.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFieW9wcnRlZmtkZ2NuaGVkeHRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTk1MzUsImV4cCI6MjA5MDQ3NTUzNX0.9C92opyhCNewB9vRzigfx_Tmz-SFpXMhwKZ0YCe2XLQ';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ══════════════════════════════════════════
+// ESTADO
+// ══════════════════════════════════════════
+let state = {
+  currentUser: null,
+  profile: null,
+  view: 'dashboard',
+  toast: null,
+  // dados carregados do banco
+  users: [],
+  colaboradores: [],
+  solicitacoes: [],
+  // loading
+  loading: false,
+  // login
+  loginEmail: '', loginPass: '', loginError: '', loginLoading: false,
+  // modais / filtros
+  approvalModal: null, approvalObs: '',
+  modalUsuario: null,
+  newReq: { tipo: 'Férias', dataInicio: '', dataFim: '', obs: '' },
+  filtroAprovUser: '', filtroAprovStatus: 'Pendente', filtroAprovInicio: '', filtroAprovFim: '',
+  filtroUsuNome: '', filtroUsuDept: '', filtroUsuStatus: '',
+  dashFiltroUser: '', dashFiltroStatus: '', dashFiltroInicio: '', dashFiltroFim: '',
+  adminDashUser: '', adminDashDept: '', adminDashStatus: '', adminDashTipo: '',
+  aiLoading: false, aiResponse: '',
+};
+
+const DEPARTAMENTOS = ['Inovação & Desenvolvimento','Dados','Infraestrutura e Serviços','Produto','Operações'];
+
+// ══════════════════════════════════════════
+// SUPABASE — operações de dados
+// ══════════════════════════════════════════
+async function loadAllData() {
+  const [{ data: users }, { data: colabs }, { data: sols }] = await Promise.all([
+    sb.from('users').select('*'),
+    sb.from('colaboradores').select('*'),
+    sb.from('solicitacoes').select('*').order('criado_em', { ascending: false }),
+  ]);
+  state.users        = users        || [];
+  state.colaboradores = colabs      || [];
+  state.solicitacoes  = sols        || [];
+}
+
+async function dbCriarSolicitacao(data) {
+  const { error } = await sb.from('solicitacoes').insert([data]);
+  if (error) throw error;
+  await loadAllData();
+}
+
+async function dbAtualizarSolicitacao(id, updates) {
+  const { error } = await sb.from('solicitacoes').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw error;
+  await loadAllData();
+}
+
+async function dbSalvarUsuario(form) {
+  if (form.id) {
+    const { error } = await sb.from('users').update({
+      name: form.nome, email: form.email, role: form.role,
+      funcao: form.funcao, squad: form.squad, departamento: form.departamento,
+      gestor_id: form.gestorId || null, status: form.status,
+    }).eq('id', form.id);
+    if (error) throw error;
+  } else {
+    // criar via Supabase Auth
+    const { data: authData, error: authErr } = await sb.auth.admin ? 
+      // se tiver service role use admin.createUser; do contrário use signUp
+      sb.auth.signUp({ email: form.email, password: form.senha || '123456gestaus', options: {
+        data: { name: form.nome, role: form.role, squad: form.squad, funcao: form.funcao, departamento: form.departamento }
+      }}) :
+      sb.auth.signUp({ email: form.email, password: '123456gestaus', options: {
+        data: { name: form.nome, role: form.role, squad: form.squad, funcao: form.funcao, departamento: form.departamento }
+      }});
+    if (authErr) throw authErr;
+    // inserir ficha de colaborador
+    if (authData?.user && form.role !== 'admin') {
+      await sb.from('colaboradores').insert([{
+        user_id: authData.user.id,
+        inicio_contrato: new Date().toISOString().slice(0,10),
+        dias_ciclo: 30,
+      }]);
+    }
+  }
+  await loadAllData();
+}
+
+async function dbToggleStatus(userId) {
+  const u = state.users.find(x => x.id === userId);
+  if (!u) return;
+  const { error } = await sb.from('users').update({ status: u.status === 'ativo' ? 'inativo' : 'ativo' }).eq('id', userId);
+  if (error) throw error;
+  await loadAllData();
+}
+
+// ══════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════
+function calcDias(inicio, fim) {
+  if (!inicio || !fim) return 0;
+  return Math.round((new Date(fim) - new Date(inicio)) / 86400000) + 1;
+}
+
+function getSaldo(userId) {
+  const colab = state.colaboradores.find(c => c.user_id === userId);
+  if (!colab) return { diasCiclo: 30, usados: 0, saldo: 30 };
+  const usados = state.solicitacoes
+    .filter(s => s.user_id === userId && ['Aprovada','Realizada'].includes(s.status))
+    .reduce((sum, s) => sum + s.dias, 0);
+  return { diasCiclo: colab.dias_ciclo, usados, saldo: Math.max(0, colab.dias_ciclo - usados) };
+}
+
+function getStatusBadge(status) {
+  const map = { Pendente:'badge-pending', Aprovada:'badge-approved', Recusada:'badge-rejected', Realizada:'badge-done', Cancelada:'badge-cancelled' };
+  return `<span class="badge ${map[status]||'badge-pending'}">${status}</span>`;
+}
+
+function getSaldoStatus(saldo, usados, ciclo) {
+  const pct = (usados / ciclo) * 100;
+  if (pct >= 100) return { label:'⚫ Sem saldo', cls:'badge-cancelled' };
+  if (pct >= 90)  return { label:'🔴 Crítico',   cls:'badge-critical' };
+  if (pct >= 70)  return { label:'🟡 Atenção',   cls:'badge-warn' };
+  return { label:'🟢 Disponível', cls:'badge-ok' };
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR');
+}
+
+function getUserById(id) { return state.users.find(u => u.id === id); }
+
+function showToast(msg, type='success') {
+  state.toast = { msg, type };
+  render();
+  setTimeout(() => { state.toast = null; render(); }, 3500);
+}
+
+function getSolicitacoesDaArea(u) {
+  if (!u) return [];
+  if (u.role === 'admin') return state.solicitacoes;
+  if (u.role === 'gestor') {
+    const ids = state.users.filter(x => (x.departamento||x.squad) === (u.departamento||u.squad) && x.role !== 'admin').map(x => x.id);
+    return state.solicitacoes.filter(s => ids.includes(s.user_id));
+  }
+  return state.solicitacoes.filter(s => s.user_id === u.id);
+}
+
+function getPendingDaArea(u) {
+  return getSolicitacoesDaArea(u).filter(s => s.status === 'Pendente').length;
+}
+
+function getColaboradoresDaArea(u) {
+  if (!u) return [];
+  if (u.role === 'admin') return state.colaboradores;
+  if (u.role === 'gestor') {
+    const ids = state.users.filter(x => (x.departamento||x.squad) === (u.departamento||u.squad) && x.role !== 'admin').map(x => x.id);
+    return state.colaboradores.filter(c => ids.includes(c.user_id));
+  }
+  return state.colaboradores.filter(c => c.user_id === u.id);
+}
+
+// ══════════════════════════════════════════
+// AÇÕES
+// ══════════════════════════════════════════
+async function login() {
+  if (state.loginLoading) return;
+  state.loginLoading = true; state.loginError = ''; render();
+  const { data, error } = await sb.auth.signInWithPassword({
+    email: state.loginEmail.trim(),
+    password: state.loginPass,
+  });
+  if (error) {
+    state.loginError = 'E-mail ou senha incorretos.';
+    state.loginLoading = false; render(); return;
+  }
+  const { data: profile } = await sb.from('users').select('*').eq('id', data.user.id).single();
+  if (!profile || profile.status === 'inativo') {
+    await sb.auth.signOut();
+    state.loginError = 'Usuário inativo. Contate o administrador.';
+    state.loginLoading = false; render(); return;
+  }
+  state.currentUser = profile;
+  await loadAllData();
+  state.loginLoading = false;
+  state.view = 'dashboard';
+  render();
+}
+
+async function logout() {
+  await sb.auth.signOut();
+  state.currentUser = null;
+  state.view = 'dashboard';
+  state.loginEmail = ''; state.loginPass = '';
+  render();
+}
+
+async function criarSolicitacao() {
+  const { tipo, dataInicio, dataFim, obs } = state.newReq;
+  if (!dataInicio || !dataFim) { showToast('Preencha as datas', 'error'); return; }
+  const dias = calcDias(dataInicio, dataFim);
+  if (dias <= 0) { showToast('Data fim deve ser após data início', 'error'); return; }
+  const saldo = getSaldo(state.currentUser.id);
+  if (saldo.saldo < dias) { showToast(`Saldo insuficiente. Disponível: ${saldo.saldo} dias`, 'error'); return; }
+  const overlap = state.solicitacoes.find(s =>
+    s.user_id === state.currentUser.id &&
+    ['Pendente','Aprovada'].includes(s.status) &&
+    !(s.data_fim < dataInicio || s.data_inicio > dataFim)
+  );
+  if (overlap) { showToast('Conflito de datas com solicitação existente', 'error'); return; }
+  try {
+    await dbCriarSolicitacao({
+      user_id: state.currentUser.id, tipo,
+      data_inicio: dataInicio, data_fim: dataFim, dias,
+      status: 'Pendente', obs,
+      criado_em: new Date().toISOString().slice(0,10),
+    });
+    state.newReq = { tipo: 'Férias', dataInicio: '', dataFim: '', obs: '' };
+    state.modal = null;
+    showToast('Solicitação enviada para aprovação ✓');
+  } catch(e) { showToast('Erro ao criar solicitação', 'error'); }
+}
+
+async function aprovar(id) {
+  try {
+    await dbAtualizarSolicitacao(id, { status: 'Aprovada', obs: state.approvalObs || 'Aprovado' });
+    state.approvalModal = null; state.approvalObs = '';
+    showToast('Solicitação aprovada ✓');
+  } catch(e) { showToast('Erro ao aprovar', 'error'); }
+}
+
+async function recusar(id) {
+  try {
+    await dbAtualizarSolicitacao(id, { status: 'Recusada', obs: state.approvalObs || 'Recusado pelo gestor' });
+    state.approvalModal = null; state.approvalObs = '';
+    showToast('Solicitação recusada', 'error');
+  } catch(e) { showToast('Erro ao recusar', 'error'); }
+}
+
+async function cancelar(id) {
+  try {
+    await dbAtualizarSolicitacao(id, { status: 'Cancelada' });
+    showToast('Solicitação cancelada');
+  } catch(e) { showToast('Erro ao cancelar', 'error'); }
+}
+
+async function salvarUsuario(form) {
+  const nome = form.nome.trim(); const email = form.email.trim().toLowerCase();
+  if (!nome || !email) { showToast('Nome e e-mail são obrigatórios', 'error'); return; }
+  try {
+    await dbSalvarUsuario(form);
+    state.modalUsuario = null;
+    showToast(form.id ? 'Usuário atualizado ✓' : 'Usuário criado ✓');
+  } catch(e) { showToast('Erro: ' + (e.message || 'verifique os dados'), 'error'); }
+}
+
+async function toggleStatus(userId) {
+  try {
+    await dbToggleStatus(userId);
+    const u = state.users.find(x => x.id === userId);
+    showToast(u?.status === 'ativo' ? 'Usuário reativado' : 'Usuário inativado');
+  } catch(e) { showToast('Erro ao alterar status', 'error'); }
+}
+
+function abrirModalUsuario(user) {
+  state.modalUsuario = user ? { ...user } : {
+    id: null, nome: '', email: '', role: 'colaborador',
+    funcao: '', squad: '', departamento: DEPARTAMENTOS[0], gestorId: '', status: 'ativo',
+  };
+  render();
+}
+
+async function askAI(prompt) {
+  state.aiLoading = true; state.aiResponse = ''; render();
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    state.aiResponse = data.content?.[0]?.text || 'Sem resposta.';
+  } catch(e) { state.aiResponse = 'Erro ao consultar IA.'; }
+  state.aiLoading = false; render();
+}
+
+// ══════════════════════════════════════════
+// LOGO SVG
+// ══════════════════════════════════════════
+const LOGO_LG = `<svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="56" height="56" rx="14" fill="#1a5c3a"/><rect x="13" y="16" width="30" height="26" rx="4" fill="none" stroke="white" stroke-width="2"/><line x1="13" y1="23" x2="43" y2="23" stroke="white" stroke-width="2"/><line x1="20" y1="13" x2="20" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><line x1="36" y1="13" x2="36" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><polyline points="21,33 26,38 35,29" stroke="#7ee8a2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
+const LOGO_SM = `<svg width="32" height="32" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="56" height="56" rx="14" fill="#1a5c3a"/><rect x="13" y="16" width="30" height="26" rx="4" fill="none" stroke="white" stroke-width="2"/><line x1="13" y1="23" x2="43" y2="23" stroke="white" stroke-width="2"/><line x1="20" y1="13" x2="20" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><line x1="36" y1="13" x2="36" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><polyline points="21,33 26,38 35,29" stroke="#7ee8a2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
+
+// ══════════════════════════════════════════
+// VIEWS
+// ══════════════════════════════════════════
+function viewLogin() {
+  return `
+  <div id="login-screen">
+    <div class="login-wrap">
+      <div class="login-brand">
+        ${LOGO_LG}
+        <div class="login-brand-name">GestAus</div>
+        <div class="login-brand-sub">Gestão de Ausências · PJ</div>
+      </div>
+      <div class="login-card">
+        <div class="login-card-title">Acesse sua conta</div>
+        <div class="login-card-sub">Use seu e-mail corporativo para entrar</div>
+        <div class="form-group">
+          <label>E-mail corporativo</label>
+          <input type="email" placeholder="seu@empresa.com.br" value="${state.loginEmail}"
+            oninput="state.loginEmail=this.value" style="font-size:14px;padding:10px 13px">
+        </div>
+        <div class="form-group">
+          <label>Senha</label>
+          <input type="password" placeholder="••••••••" value="${state.loginPass}"
+            oninput="state.loginPass=this.value"
+            onkeydown="if(event.key==='Enter')login()"
+            style="font-size:14px;padding:10px 13px">
+        </div>
+        ${state.loginError ? `<div class="alert alert-danger">${state.loginError}</div>` : ''}
+        <button class="btn btn-primary btn-full" onclick="login()" style="padding:11px;font-size:14px;border-radius:8px;margin-top:4px" ${state.loginLoading ? 'disabled' : ''}>
+          ${state.loginLoading ? '<span class="dot-pulse"></span> Entrando...' : 'Entrar'}
+        </button>
+      </div>
+      <div class="login-footer">© ${new Date().getFullYear()} GestAus · Gestão de Ausências PJ · Uso interno</div>
+    </div>
+  </div>`;
+}
+
+function viewSidebar() {
+  const u = state.currentUser;
+  const pending = getPendingDaArea(u);
+  return `
+  <div id="sidebar">
+    <div class="sidebar-brand" style="padding:16px 16px 14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        ${LOGO_SM}
+        <div><div class="brand-name">GestAus</div><div class="brand-sub">Gestão de Ausências · PJ</div></div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="avatar">${u.avatar||u.name.slice(0,2).toUpperCase()}</div>
+      <div>
+        <div class="user-name">${u.name.split(' ')[0]}</div>
+        <div class="user-role">${u.role==='gestor'?'Gestor':u.role==='admin'?'Admin':'Colaborador'}</div>
+      </div>
+    </div>
+    <nav>
+      <div class="nav-section">Menu</div>
+      ${navItem('dashboard','📊','Dashboard')}
+      ${navItem('minhas','📋','Minhas Solicitações')}
+      ${(u.role==='gestor'||u.role==='admin') ? navItem('aprovacoes','✅','Aprovações', pending) : ''}
+      ${navItem('equipe','👥','Equipe')}
+      ${navItem('calendario','📅','Calendário')}
+      ${navItem('nova','➕','Nova Solicitação')}
+      ${u.role==='admin' ? `<div class="nav-section">Admin</div>${navItem('usuarios','⚙️','Usuários')}` : ''}
+      <div class="nav-section">IA</div>
+      ${navItem('assistente','🤖','Assistente IA')}
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn btn-secondary btn-sm" onclick="logout()" style="width:100%">Sair</button>
+    </div>
+  </div>`;
+}
+
+function navItem(v, icon, label, badge) {
+  const b = badge ? `<span class="nav-badge">${badge}</span>` : '';
+  return `<div class="nav-item ${state.view===v?'active':''}" onclick="state.view='${v}';render()">
+    <span class="nav-icon">${icon}</span>${label}${b}</div>`;
+}
+
+function viewDashboard() {
+  const u = state.currentUser;
+
+  if (u.role === 'colaborador') {
+    const saldo = getSaldo(u.id);
+    const minhasSols = state.solicitacoes.filter(s => s.user_id === u.id);
+    const st = getSaldoStatus(saldo.saldo, saldo.usados, saldo.diasCiclo);
+    const pct = Math.min(100, Math.round((saldo.usados/saldo.diasCiclo)*100));
+    const barCls = pct>=90?'progress-red':pct>=70?'progress-amber':'progress-green';
+    return `<div id="content">
+      <div class="page-header flex-between">
+        <div><div class="page-title">Olá, ${u.name.split(' ')[0]} 👋</div>
+        <div class="page-desc">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div></div>
+        <button class="btn btn-primary" onclick="state.view='nova';render()">+ Nova solicitação</button>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Saldo disponível</div><div class="stat-value stat-green">${saldo.saldo}</div><div class="stat-sub">de ${saldo.diasCiclo} dias no ciclo</div><div class="progress-bar" style="margin-top:8px"><div class="progress-fill ${barCls}" style="width:${pct}%"></div></div></div>
+        <div class="stat-card"><div class="stat-label">Dias usados</div><div class="stat-value stat-amber">${saldo.usados}</div><div class="stat-sub">no ciclo atual</div></div>
+        <div class="stat-card"><div class="stat-label">Minhas solicitações</div><div class="stat-value stat-blue">${minhasSols.length}</div><div class="stat-sub">${minhasSols.filter(s=>s.status==='Pendente').length} pendente(s)</div></div>
+        <div class="stat-card"><div class="stat-label">Status ciclo</div><div style="margin-top:8px"><span class="badge ${st.cls}">${st.label}</span></div><div class="stat-sub" style="margin-top:6px">${pct}% utilizado</div></div>
+      </div>
+      <div class="card mb-6">
+        <div class="flex-between mb-4">
+          <div><div class="card-title">Minhas últimas solicitações</div><div class="card-sub">Histórico recente</div></div>
+          <button class="btn btn-secondary btn-sm" onclick="state.view='minhas';render()">Ver todas</button>
+        </div>
+        ${minhasSols.length===0?`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma solicitação ainda</div></div>`:`
+        <div class="table-wrap"><table>
+          <thead><tr><th>Tipo</th><th>Período</th><th>Dias</th><th>Status</th><th>Obs</th></tr></thead>
+          <tbody>${minhasSols.slice(0,5).map(s=>`<tr>
+            <td><span class="badge badge-info">${s.tipo}</span></td>
+            <td>${formatDate(s.data_inicio)} → ${formatDate(s.data_fim)}</td>
+            <td>${s.dias}d</td><td>${getStatusBadge(s.status)}</td>
+            <td style="color:var(--text3);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.obs||'—'}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>`}
+      </div>
+    </div>`;
+  }
+
+  if (u.role === 'admin') {
+    const adUser=state.adminDashUser||'', adDept=state.adminDashDept||'', adSt=state.adminDashStatus||'', adTipo=state.adminDashTipo||'';
+    const todosUsers=state.users.filter(x=>x.role!=='admin');
+    const depts=[...new Set(todosUsers.map(x=>x.departamento||x.squad).filter(Boolean))].sort();
+    let usersBase=todosUsers;
+    if(adDept) usersBase=usersBase.filter(x=>(x.departamento||x.squad)===adDept);
+    if(adUser) usersBase=usersBase.filter(x=>x.id===adUser);
+    const idsBase=usersBase.map(x=>x.id);
+    let solsBase=state.solicitacoes.filter(s=>idsBase.includes(s.user_id));
+    if(adSt) solsBase=solsBase.filter(s=>s.status===adSt);
+    if(adTipo) solsBase=solsBase.filter(s=>s.tipo===adTipo);
+    const ativos=todosUsers.filter(x=>x.status!=='inativo').length;
+    const inativos=todosUsers.filter(x=>x.status==='inativo').length;
+    const pendentes=state.solicitacoes.filter(s=>s.status==='Pendente').length;
+    const aprovadas=state.solicitacoes.filter(s=>s.status==='Aprovada').length;
+    const recusadas=state.solicitacoes.filter(s=>s.status==='Recusada').length;
+    const criticos=state.colaboradores.filter(c=>{const s=getSaldo(c.user_id);return s.usados/s.diasCiclo>=0.9;}).length;
+    const hoje=new Date().toISOString().slice(0,10);
+    const proximas30=state.solicitacoes.filter(s=>['Aprovada','Pendente'].includes(s.status)&&s.data_inicio>=hoje).length;
+    const semFerias=todosUsers.filter(x=>!state.solicitacoes.some(s=>s.user_id===x.id&&s.tipo==='Férias'&&['Aprovada','Realizada','Pendente'].includes(s.status)));
+    const alertas=[];
+    if(pendentes>0) alertas.push({tipo:'warn',msg:pendentes+' solicitação(ões) pendente(s) de aprovação.'});
+    if(criticos>0) alertas.push({tipo:'warn',msg:criticos+' colaborador(es) com saldo ≥90% utilizado.'});
+    if(semFerias.length>0) alertas.push({tipo:'info',msg:semFerias.length+' colaborador(es) sem férias registradas.'});
+    const saudeDepts=depts.map(dept=>{
+      const ids=todosUsers.filter(x=>(x.departamento||x.squad)===dept).map(x=>x.id);
+      const sols=state.solicitacoes.filter(s=>ids.includes(s.user_id));
+      const pend=sols.filter(s=>s.status==='Pendente').length;
+      const crit=ids.filter(id=>{const s=getSaldo(id);return s.usados/s.diasCiclo>=0.9;}).length;
+      return {dept,total:ids.length,pend,crit};
+    });
+    const solsFiltradas=solsBase.slice();
+    return `<div id="content">
+      <div class="page-header flex-between">
+        <div><div class="page-title">Painel executivo</div>
+        <div class="page-desc">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · visão global</div></div>
+        <button class="btn btn-primary" onclick="state.view='usuarios';render()">⚙️ Gestão de usuários</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px">
+        <div class="stat-card"><div class="stat-label">Usuários ativos</div><div class="stat-value stat-green">${ativos}</div><div class="stat-sub">${inativos} inativo(s)</div></div>
+        <div class="stat-card"><div class="stat-label">Departamentos</div><div class="stat-value stat-blue">${depts.length}</div><div class="stat-sub">no sistema</div></div>
+        <div class="stat-card"><div class="stat-label">Pendentes</div><div class="stat-value ${pendentes>0?'stat-red':'stat-green'}">${pendentes}</div><div class="stat-sub">aguardando aprovação</div></div>
+        <div class="stat-card"><div class="stat-label">Aprovadas</div><div class="stat-value stat-blue">${aprovadas}</div><div class="stat-sub">${recusadas} recusada(s)</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+        <div class="stat-card"><div class="stat-label">Saldo crítico</div><div class="stat-value ${criticos>0?'stat-red':'stat-green'}">${criticos}</div><div class="stat-sub">colaborador(es) ≥90%</div></div>
+        <div class="stat-card"><div class="stat-label">Ausências próximas</div><div class="stat-value stat-amber">${proximas30}</div><div class="stat-sub">a partir de hoje</div></div>
+        <div class="stat-card"><div class="stat-label">Total solicitações</div><div class="stat-value stat-blue">${state.solicitacoes.length}</div><div class="stat-sub">histórico completo</div></div>
+        <div class="stat-card"><div class="stat-label">Sem férias registradas</div><div class="stat-value ${semFerias.length>0?'stat-amber':'stat-green'}">${semFerias.length}</div><div class="stat-sub">colaborador(es)</div></div>
+      </div>
+      ${alertas.length>0?alertas.map(a=>`<div class="alert alert-${a.tipo}" style="margin-bottom:8px">${a.tipo==='warn'?'⚠️':'ℹ️'} ${a.msg}</div>`).join(''):`<div class="alert alert-success" style="margin-bottom:16px">✅ Nenhum alerta crítico.</div>`}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+        <div class="card">
+          <div class="card-title" style="margin-bottom:14px">Saúde por departamento</div>
+          <div class="table-wrap" style="border:none"><table style="font-size:12px">
+            <thead><tr><th>Departamento</th><th>Pessoas</th><th>Pendentes</th><th>Críticos</th><th></th></tr></thead>
+            <tbody>${saudeDepts.map(d=>`<tr>
+              <td style="font-weight:500">${d.dept}</td><td>${d.total}</td>
+              <td>${d.pend>0?`<span class="badge badge-pending">${d.pend}</span>`:'—'}</td>
+              <td>${d.crit>0?`<span class="badge badge-critical">${d.crit}</span>`:'—'}</td>
+              <td>${d.crit>0||d.pend>2?'🔴':d.pend>0?'🟡':'🟢'}</td>
+            </tr>`).join('')}</tbody>
+          </table></div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:14px">Requer atenção</div>
+          ${(()=>{
+            const itens=[];
+            state.colaboradores.forEach(c=>{
+              const usr=getUserById(c.user_id);
+              if(!usr||usr.status==='inativo') return;
+              const s=getSaldo(c.user_id);
+              const pct=Math.round(s.usados/s.diasCiclo*100);
+              if(pct>=90) itens.push({usr,motivo:'Saldo crítico ('+pct+'%)'});
+            });
+            if(itens.length===0) return `<div style="font-size:13px;color:var(--text3)">Nenhum item requer atenção.</div>`;
+            return itens.slice(0,6).map(i=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
+              <div class="flex gap-2"><div class="avatar" style="width:26px;height:26px;font-size:10px">${i.usr.avatar||i.usr.name.slice(0,2)}</div>
+              <div><div style="font-size:13px;font-weight:500">${i.usr.name.split(' ')[0]}</div>
+              <div style="font-size:11px;color:var(--text3)">${i.usr.departamento||i.usr.squad||'—'}</div></div></div>
+              <span class="badge badge-warn" style="font-size:10px">${i.motivo}</span>
+            </div>`).join('');
+          })()}
+        </div>
+      </div>
+      <div class="card">
+        <div class="flex-between mb-4">
+          <div><div class="card-title">Movimentações recentes</div>
+          <div class="card-sub">${solsFiltradas.length} registro(s)</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:var(--radius-sm)">
+          <div><label>Departamento</label>
+            <select onchange="state.adminDashDept=this.value;state.adminDashUser='';render()">
+              <option value="">Todos</option>
+              ${depts.map(d=>`<option value="${d}" ${adDept===d?'selected':''}>${d}</option>`).join('')}
+            </select></div>
+          <div><label>Colaborador</label>
+            <select onchange="state.adminDashUser=this.value;render()">
+              <option value="">Todos</option>
+              ${(adDept?todosUsers.filter(x=>(x.departamento||x.squad)===adDept):todosUsers).map(x=>`<option value="${x.id}" ${adUser===x.id?'selected':''}>${x.name.split(' ')[0]}</option>`).join('')}
+            </select></div>
+          <div><label>Status</label>
+            <select onchange="state.adminDashStatus=this.value;render()">
+              <option value="">Todos</option>
+              ${['Pendente','Aprovada','Recusada','Realizada','Cancelada'].map(s=>`<option value="${s}" ${adSt===s?'selected':''}>${s}</option>`).join('')}
+            </select></div>
+          <div><label>Tipo</label>
+            <select onchange="state.adminDashTipo=this.value;render()">
+              <option value="">Todos</option>
+              <option value="Férias" ${adTipo==='Férias'?'selected':''}>Férias</option>
+              <option value="Folga"  ${adTipo==='Folga' ?'selected':''}>Folga</option>
+            </select></div>
+        </div>
+        ${solsFiltradas.length===0?`<div class="empty-state" style="padding:24px"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma solicitação encontrada</div></div>`:`
+        <div class="table-wrap"><table>
+          <thead><tr><th>Colaborador</th><th>Departamento</th><th>Tipo</th><th>Período</th><th>Dias</th><th>Status</th><th>Criado em</th></tr></thead>
+          <tbody>${solsFiltradas.slice(0,15).map(s=>{
+            const usr=getUserById(s.user_id);
+            return `<tr>
+              <td><div class="flex gap-2"><div class="avatar" style="width:24px;height:24px;font-size:10px">${usr?.avatar||'??'}</div>
+              <div><div style="font-size:13px;font-weight:500">${usr?.name||'—'}</div><div style="font-size:11px;color:var(--text3)">${usr?.funcao||''}</div></div></div></td>
+              <td style="font-size:12px;color:var(--text2)">${usr?.departamento||usr?.squad||'—'}</td>
+              <td><span class="badge badge-info">${s.tipo}</span></td>
+              <td style="font-size:12px">${formatDate(s.data_inicio)} → ${formatDate(s.data_fim)}</td>
+              <td style="font-size:12px">${s.dias}d</td>
+              <td>${getStatusBadge(s.status)}</td>
+              <td style="font-size:12px;color:var(--text3)">${formatDate(s.criado_em)}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table></div>`}
+      </div>
+    </div>`;
+  }
+
+  // GESTOR
+  const meuDept=u.departamento||u.squad;
+  const equipe=state.users.filter(x=>(x.departamento||x.squad)===meuDept&&x.id!==u.id&&x.role!=='admin');
+  const idsEquipe=equipe.map(x=>x.id);
+  const todosIds=[u.id,...idsEquipe];
+  const solsDept=state.solicitacoes.filter(s=>todosIds.includes(s.user_id));
+  const pending=solsDept.filter(s=>s.status==='Pendente').length;
+  const hoje=new Date().toISOString().slice(0,10);
+  const proximas=solsDept.filter(s=>['Aprovada','Pendente'].includes(s.status)&&s.data_inicio>=hoje).sort((a,b)=>a.data_inicio.localeCompare(b.data_inicio)).slice(0,5);
+  const criticos=todosIds.filter(id=>{const s=getSaldo(id);return s.usados/s.diasCiclo>=0.9;}).length;
+  const meuSaldo=getSaldo(u.id);
+  const meuPct=Math.min(100,Math.round((meuSaldo.usados/meuSaldo.diasCiclo)*100));
+  const meuSt=getSaldoStatus(meuSaldo.saldo,meuSaldo.usados,meuSaldo.diasCiclo);
+  const meuBarCls=meuPct>=90?'progress-red':meuPct>=70?'progress-amber':'progress-green';
+  const dfUser=state.dashFiltroUser||'', dfStatus=state.dashFiltroStatus||'', dfInicio=state.dashFiltroInicio||'', dfFim=state.dashFiltroFim||'';
+  let solsFiltradas=solsDept.slice().reverse();
+  if(dfUser) solsFiltradas=solsFiltradas.filter(s=>s.user_id===dfUser);
+  if(dfStatus) solsFiltradas=solsFiltradas.filter(s=>s.status===dfStatus);
+  if(dfInicio) solsFiltradas=solsFiltradas.filter(s=>s.data_inicio>=dfInicio);
+  if(dfFim) solsFiltradas=solsFiltradas.filter(s=>s.data_fim<=dfFim);
+  return `<div id="content">
+    <div class="page-header flex-between">
+      <div><div class="page-title">Olá, ${u.name.split(' ')[0]} 👋</div>
+      <div class="page-desc">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${meuDept}</div></div>
+      <button class="btn btn-primary" onclick="state.view='nova';render()">+ Nova solicitação</button>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">Equipe no departamento</div><div class="stat-value stat-blue">${equipe.length+1}</div><div class="stat-sub">incluindo você</div></div>
+      <div class="stat-card"><div class="stat-label">Pendentes de aprovação</div><div class="stat-value ${pending>0?'stat-red':'stat-green'}">${pending}</div><div class="stat-sub">aguardando sua decisão</div></div>
+      <div class="stat-card"><div class="stat-label">Próximas ausências</div><div class="stat-value stat-amber">${proximas.length}</div><div class="stat-sub">agendadas na equipe</div></div>
+      <div class="stat-card"><div class="stat-label">Saldo crítico</div><div class="stat-value ${criticos>0?'stat-red':'stat-green'}">${criticos}</div><div class="stat-sub">colaborador(es) ≥90%</div></div>
+    </div>
+    ${pending>0?`<div class="alert alert-warn" style="display:flex;align-items:center;justify-content:space-between"><span>⚠️ <strong>${pending}</strong> solicitação(ões) aguardando aprovação.</span><button class="btn btn-secondary btn-sm" onclick="state.view='aprovacoes';render()">Revisar agora →</button></div>`:`<div class="alert alert-success">✅ Nenhuma solicitação pendente de aprovação.</div>`}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px">Minha situação</div>
+        <div class="flex-between" style="margin-bottom:6px"><span style="font-size:13px;color:var(--text2)">Saldo disponível</span><strong style="font-size:18px;color:var(--accent)">${meuSaldo.saldo}d</strong></div>
+        <div class="progress-bar" style="margin-bottom:4px"><div class="progress-fill ${meuBarCls}" style="width:${meuPct}%"></div></div>
+        <div class="flex-between" style="margin-bottom:12px"><span style="font-size:11px;color:var(--text3)">${meuSaldo.usados}d usados</span><span style="font-size:11px;color:var(--text3)">${meuSaldo.diasCiclo}d no ciclo</span></div>
+        <span class="badge ${meuSt.cls}">${meuSt.label}</span>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px">Próximas ausências da equipe</div>
+        ${proximas.length===0?`<div style="font-size:13px;color:var(--text3)">Nenhuma ausência agendada.</div>`:
+        proximas.map(s=>{const usr=getUserById(s.user_id);return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+          <div><div style="font-size:13px;font-weight:500">${usr?.name?.split(' ')[0]}</div><div style="font-size:11px;color:var(--text3)">${formatDate(s.data_inicio)} → ${formatDate(s.data_fim)} · ${s.dias}d</div></div>
+          <div style="text-align:right"><span class="badge badge-info" style="font-size:10px">${s.tipo}</span><br><span style="display:block;margin-top:2px">${getStatusBadge(s.status)}</span></div>
+        </div>`;}).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="flex-between mb-4">
+        <div><div class="card-title">Solicitações recentes do departamento</div><div class="card-sub">${solsDept.length} no total · ${meuDept}</div></div>
+        <button class="btn btn-secondary btn-sm" onclick="state.view='aprovacoes';render()">Ver aprovações →</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:var(--radius-sm)">
+        <div><label>Colaborador</label><select onchange="state.dashFiltroUser=this.value;render()"><option value="">Todos</option>${todosIds.map(id=>{const usr=getUserById(id);return usr?`<option value="${id}" ${dfUser===id?'selected':''}>${usr.name.split(' ')[0]}</option>`:''}).join('')}</select></div>
+        <div><label>Status</label><select onchange="state.dashFiltroStatus=this.value;render()"><option value="">Todos</option>${['Pendente','Aprovada','Recusada','Realizada','Cancelada'].map(s=>`<option value="${s}" ${dfStatus===s?'selected':''}>${s}</option>`).join('')}</select></div>
+        <div><label>De</label><input type="date" value="${dfInicio}" onchange="state.dashFiltroInicio=this.value;render()"></div>
+        <div><label>Até</label><input type="date" value="${dfFim}" onchange="state.dashFiltroFim=this.value;render()"></div>
+      </div>
+      ${solsFiltradas.length===0?`<div class="empty-state" style="padding:24px"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma solicitação encontrada</div></div>`:`
+      <div class="table-wrap"><table>
+        <thead><tr><th>Colaborador</th><th>Tipo</th><th>Período</th><th>Dias</th><th>Status</th><th>Observação</th></tr></thead>
+        <tbody>${solsFiltradas.slice(0,10).map(s=>{const usr=getUserById(s.user_id);return `<tr>
+          <td><div class="flex gap-2"><div class="avatar" style="width:24px;height:24px;font-size:10px">${usr?.avatar||'??'}</div>
+          <div><div style="font-size:13px;font-weight:500">${usr?.name?.split(' ')[0]||'—'}</div><div style="font-size:11px;color:var(--text3)">${usr?.funcao||''}</div></div></div></td>
+          <td><span class="badge badge-info">${s.tipo}</span></td>
+          <td style="font-size:12px">${formatDate(s.data_inicio)} → ${formatDate(s.data_fim)}</td>
+          <td style="font-size:12px">${s.dias}d</td><td>${getStatusBadge(s.status)}</td>
+          <td style="color:var(--text3);font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.obs||'—'}</td>
+        </tr>`;}).join('')}</tbody>
+      </table></div>`}
+    </div>
+  </div>`;
+}
+
+function viewMinhas() {
+  const u=state.currentUser;
+  const sols=state.solicitacoes.filter(s=>s.user_id===u.id);
+  return `<div id="content">
+    <div class="page-header flex-between">
+      <div><div class="page-title">Minhas Solicitações</div><div class="page-desc">Histórico completo</div></div>
+      <button class="btn btn-primary" onclick="state.view='nova';render()">+ Nova solicitação</button>
+    </div>
+    ${sols.length===0?`<div class="empty-state card"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma solicitação</div></div>`:`
+    <div class="table-wrap"><table>
+      <thead><tr><th>Tipo</th><th>Data início</th><th>Data fim</th><th>Dias</th><th>Status</th><th>Observação</th><th>Ações</th></tr></thead>
+      <tbody>${sols.map(s=>`<tr>
+        <td><span class="badge badge-info">${s.tipo}</span></td>
+        <td>${formatDate(s.data_inicio)}</td><td>${formatDate(s.data_fim)}</td>
+        <td>${s.dias}d</td><td>${getStatusBadge(s.status)}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text3)">${s.obs||'—'}</td>
+        <td>${['Pendente','Aprovada'].includes(s.status)?`<button class="btn btn-danger btn-sm" onclick="cancelar(${s.id})">Cancelar</button>`:'—'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`}
+  </div>`;
+}
+
+function viewNova() {
+  const u=state.currentUser;
+  const saldo=getSaldo(u.id);
+  const dias=calcDias(state.newReq.dataInicio,state.newReq.dataFim);
+  const saldoApos=saldo.saldo-dias;
+  const st=getSaldoStatus(saldo.saldo,saldo.usados,saldo.diasCiclo);
+  return `<div id="content">
+    <div class="page-header"><div class="page-title">Nova Solicitação</div><div class="page-desc">Férias ou folga — o saldo é o mesmo</div></div>
+    <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start">
+      <div class="card">
+        <div class="form-group"><label>Tipo de ausência</label>
+          <select oninput="state.newReq.tipo=this.value;render()">
+            <option value="Férias" ${state.newReq.tipo==='Férias'?'selected':''}>🏖️ Férias</option>
+            <option value="Folga"  ${state.newReq.tipo==='Folga' ?'selected':''}>🌤️ Folga</option>
+          </select></div>
+        <div class="form-row">
+          <div class="form-group"><label>Data de início</label><input type="date" value="${state.newReq.dataInicio}" oninput="state.newReq.dataInicio=this.value;render()"></div>
+          <div class="form-group"><label>Data de fim</label><input type="date" value="${state.newReq.dataFim}" oninput="state.newReq.dataFim=this.value;render()"></div>
+        </div>
+        ${dias>0?`<div class="alert alert-info">📅 Total: <strong>${dias} dias corridos</strong> — ${saldoApos>=0?`saldo após: ${saldoApos} dias`:'<strong style="color:var(--danger)">Saldo insuficiente!</strong>'}</div>`:''}
+        <div class="form-group"><label>Observação (opcional)</label>
+          <textarea placeholder="Informações adicionais para o gestor..." oninput="state.newReq.obs=this.value">${state.newReq.obs}</textarea>
+          <div class="form-hint">Alinhamentos prévios, motivo, etc.</div></div>
+        <div class="flex gap-2" style="justify-content:flex-end">
+          <button class="btn btn-secondary" onclick="state.view='dashboard';render()">Cancelar</button>
+          <button class="btn btn-primary" onclick="criarSolicitacao()" ${dias<=0||saldoApos<0?'disabled':''}>Enviar solicitação</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <div class="card-title">Seu saldo</div>
+          <div style="margin-top:12px">
+            <div class="flex-between" style="margin-bottom:6px"><span style="font-size:13px;color:var(--text2)">Disponível</span><strong style="font-size:18px;color:var(--accent)">${saldo.saldo}d</strong></div>
+            <div class="progress-bar"><div class="progress-fill ${saldo.usados/saldo.diasCiclo>=0.9?'progress-red':'progress-green'}" style="width:${Math.min(100,Math.round(saldo.usados/saldo.diasCiclo*100))}%"></div></div>
+            <div class="flex-between" style="margin-top:4px"><span style="font-size:11px;color:var(--text3)">${saldo.usados}d usados</span><span style="font-size:11px;color:var(--text3)">${saldo.diasCiclo}d no ciclo</span></div>
+          </div>
+          <hr class="divider"><div><span class="badge ${st.cls}">${st.label}</span></div>
+        </div>
+        <div class="card" style="background:var(--info-light);border-color:#bfdbfe">
+          <div style="font-size:12px;font-weight:600;color:var(--info);margin-bottom:6px">ℹ️ Regras</div>
+          <ul style="font-size:12px;color:var(--info);line-height:1.7;padding-left:14px">
+            <li>Dias são <strong>corridos</strong>, não úteis</li>
+            <li>Folgas e férias usam o mesmo saldo</li>
+            <li>Solicite com antecedência de 20 dias</li>
+            <li>Aguardar aprovação do gestor</li>
+            <li>Saldo não acumula para o ano seguinte</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function viewAprovacoes() {
+  const u=state.currentUser;
+  const solsDaArea=getSolicitacoesDaArea(u);
+  const usuariosDaArea=state.users.filter(x=>(x.departamento||x.squad)===(u.departamento||u.squad)&&x.role!=='admin');
+  const filtroUser=state.filtroAprovUser||'', filtroStatus=state.filtroAprovStatus||'Pendente';
+  const filtroInicio=state.filtroAprovInicio||'', filtroFim=state.filtroAprovFim||'';
+  let pendentes=solsDaArea.filter(s=>s.status===filtroStatus);
+  if(filtroUser) pendentes=pendentes.filter(s=>s.user_id===filtroUser);
+  if(filtroInicio) pendentes=pendentes.filter(s=>s.data_inicio>=filtroInicio);
+  if(filtroFim) pendentes=pendentes.filter(s=>s.data_fim<=filtroFim);
+  const totalPendentes=solsDaArea.filter(s=>s.status==='Pendente').length;
+  return `<div id="content">
+    <div class="page-header"><div class="page-title">Aprovações${u.role==='gestor'?' — '+(u.departamento||u.squad):''}</div>
+    <div class="page-desc">${totalPendentes} solicitação(ões) pendente(s)</div></div>
+    <div class="card mb-4" style="padding:14px 16px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;align-items:end">
+        <div><label>Colaborador</label><select onchange="state.filtroAprovUser=this.value;render()"><option value="">Todos</option>
+          ${(u.role==='admin'?state.users.filter(x=>x.role!=='admin'):usuariosDaArea).map(x=>`<option value="${x.id}" ${filtroUser===x.id?'selected':''}>${x.name.split(' ')[0]}</option>`).join('')}
+        </select></div>
+        <div><label>Status</label><select onchange="state.filtroAprovStatus=this.value;render()">
+          ${['Pendente','Aprovada','Recusada','Realizada'].map(s=>`<option value="${s}" ${filtroStatus===s?'selected':''}>${s}</option>`).join('')}
+        </select></div>
+        <div><label>De</label><input type="date" value="${filtroInicio}" onchange="state.filtroAprovInicio=this.value;render()"></div>
+        <div><label>Até</label><input type="date" value="${filtroFim}" onchange="state.filtroAprovFim=this.value;render()"></div>
+      </div>
+    </div>
+    ${pendentes.length===0?`<div class="empty-state card"><div class="empty-icon">✅</div><div class="empty-text">Nenhuma solicitação encontrada</div></div>`:`
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${pendentes.map(s=>{
+        const usr=getUserById(s.user_id);
+        const saldo=getSaldo(s.user_id);
+        return `<div class="card">
+          <div class="flex-between">
+            <div class="flex gap-3"><div class="avatar">${usr?.avatar||'??'}</div>
+            <div><div style="font-size:14px;font-weight:600">${usr?.name||'—'}</div>
+            <div style="font-size:12px;color:var(--text3)">${usr?.departamento||usr?.squad||'—'} · ${usr?.funcao||'—'}</div></div></div>
+            <span class="badge badge-info">${s.tipo}</span>
+          </div>
+          <div style="margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px;background:var(--surface2);border-radius:var(--radius-sm)">
+            <div><div style="font-size:11px;color:var(--text3)">PERÍODO</div><div style="font-size:13px;font-weight:500">${formatDate(s.data_inicio)} → ${formatDate(s.data_fim)}</div></div>
+            <div><div style="font-size:11px;color:var(--text3)">DIAS</div><div style="font-size:13px;font-weight:500">${s.dias} dias corridos</div></div>
+            <div><div style="font-size:11px;color:var(--text3)">SALDO ATUAL</div><div style="font-size:13px;font-weight:500;color:${saldo.saldo<s.dias?'var(--danger)':'var(--accent)'}">${saldo.saldo}d disponível</div></div>
+          </div>
+          ${s.obs?`<div style="margin-top:10px;font-size:13px;color:var(--text2)">💬 "${s.obs}"</div>`:''}
+          ${s.status==='Pendente'?`<div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn btn-secondary btn-sm" onclick="state.approvalModal=${s.id};state.approvalObs='';render()">✏️ Com observação</button>
+            <button class="btn btn-danger btn-sm" onclick="state.approvalModal=${s.id};state.approvalObs='';render()">✗ Recusar</button>
+            <button class="btn btn-primary btn-sm" onclick="aprovar(${s.id})">✓ Aprovar</button>
+          </div>`:''}
+        </div>`;
+      }).join('')}
+    </div>`}
+    ${state.approvalModal?`<div class="modal-overlay" onclick="if(event.target===this){state.approvalModal=null;render()}">
+      <div class="modal">
+        <div class="modal-title">Revisar solicitação</div>
+        <div class="modal-sub">Adicione uma observação antes de decidir</div>
+        <div class="form-group"><label>Observação para o colaborador</label>
+          <textarea placeholder="Ex: Aprovado. / Favor reagendar para..." oninput="state.approvalObs=this.value">${state.approvalObs}</textarea></div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" onclick="state.approvalModal=null;render()">Cancelar</button>
+          <button class="btn btn-danger" onclick="recusar(${state.approvalModal})">✗ Recusar</button>
+          <button class="btn btn-primary" onclick="aprovar(${state.approvalModal})">✓ Aprovar</button>
+        </div>
+      </div>
+    </div>`:''}
+  </div>`;
+}
+
+function viewEquipe() {
+  const u=state.currentUser;
+  const colabsDaArea=getColaboradoresDaArea(u);
+  const areaLabel=u.role==='gestor'?` — ${u.departamento||u.squad}`:u.role==='admin'?' — todas as áreas':'';
+  return `<div id="content">
+    <div class="page-header"><div class="page-title">Equipe${areaLabel}</div>
+    <div class="page-desc">${colabsDaArea.length} colaborador(es)</div></div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${colabsDaArea.map(c=>{
+        const user=getUserById(c.user_id);
+        if(!user) return '';
+        const saldo=getSaldo(c.user_id);
+        const st=getSaldoStatus(saldo.saldo,saldo.usados,c.dias_ciclo);
+        const pct=Math.min(100,Math.round((saldo.usados/c.dias_ciclo)*100));
+        const barCls=pct>=90?'progress-red':pct>=70?'progress-amber':'progress-green';
+        const proxFerias=state.solicitacoes.filter(s=>s.user_id===c.user_id&&['Aprovada','Pendente'].includes(s.status)&&s.data_inicio>=new Date().toISOString().slice(0,10)).sort((a,b)=>a.data_inicio.localeCompare(b.data_inicio))[0];
+        return `<div class="card">
+          <div class="flex-between">
+            <div class="flex gap-3"><div class="avatar" style="width:40px;height:40px;font-size:13px">${user.avatar||user.name.slice(0,2)}</div>
+            <div><div style="font-size:14px;font-weight:600">${user.name}</div>
+            <div style="font-size:12px;color:var(--text3)">${user.departamento||user.squad||'—'} · ${user.funcao||'—'}</div></div></div>
+            <span class="badge ${st.cls}">${st.label}</span>
+          </div>
+          <div style="margin-top:12px;display:grid;grid-template-columns:1fr 2fr 1fr;gap:14px;align-items:center">
+            <div><div style="font-size:11px;color:var(--text3)">SALDO</div><div style="font-size:20px;font-weight:600;color:var(--accent)">${saldo.saldo}d</div><div style="font-size:11px;color:var(--text3)">${saldo.usados}d usados</div></div>
+            <div><div class="flex-between" style="margin-bottom:4px"><span style="font-size:11px;color:var(--text3)">UTILIZAÇÃO</span><span style="font-size:11px;color:var(--text3)">${pct}%</span></div>
+            <div class="progress-bar"><div class="progress-fill ${barCls}" style="width:${pct}%"></div></div></div>
+            <div style="text-align:right">${proxFerias?`<div style="font-size:11px;color:var(--text3)">PRÓXIMA AUSÊNCIA</div>
+            <div style="font-size:12px;font-weight:500">${formatDate(proxFerias.data_inicio)}</div>
+            <div style="font-size:11px;color:var(--text3)">${proxFerias.tipo} · ${proxFerias.dias}d</div>`:`<div style="font-size:11px;color:var(--text3)">Nenhuma agendada</div>`}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function viewCalendario() {
+  const now=new Date(); const year=now.getFullYear(); const month=now.getMonth();
+  const firstDay=new Date(year,month,1).getDay();
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const monthName=now.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const solsCalendario=getSolicitacoesDaArea(state.currentUser);
+  const absencesByDay={}, conflictsByDay={};
+  solsCalendario.filter(s=>['Aprovada','Realizada','Pendente'].includes(s.status)).forEach(s=>{
+    const d1=new Date(s.data_inicio+'T12:00'), d2=new Date(s.data_fim+'T12:00');
+    for(let d=new Date(d1);d<=d2;d.setDate(d.getDate()+1)){
+      if(d.getMonth()===month&&d.getFullYear()===year){
+        const key=d.getDate();
+        if(!absencesByDay[key]) absencesByDay[key]=[];
+        const user=getUserById(s.user_id);
+        const squad=user?.squad||'';
+        absencesByDay[key].push({name:user?.name?.split(' ')[0],tipo:s.tipo,status:s.status,userId:s.user_id,squad});
+        if(!conflictsByDay[key]) conflictsByDay[key]={};
+        if(!conflictsByDay[key][squad]) conflictsByDay[key][squad]=new Set();
+        conflictsByDay[key][squad].add(s.user_id);
+      }
+    }
+  });
+  const conflictDays=new Set(Object.entries(conflictsByDay).filter(([,squads])=>Object.values(squads).some(set=>set.size>=2)).map(([day])=>parseInt(day)));
+  const days=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  let cells='';
+  for(let i=0;i<firstDay;i++) cells+=`<div class="cal-day other-month"></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const isToday=d===now.getDate(), abs=absencesByDay[d]||[], isConflict=conflictDays.has(d);
+    const colors={'Aprovada':'#059669','Realizada':'#3730a3','Pendente':'#d97706'};
+    cells+=`<div class="cal-day ${isToday?'today':''} ${abs.length?'has-event':''} ${isConflict?'conflict':''}" title="${isConflict?'⚠️ Conflito de cobertura':''}">
+      <div class="cal-num" style="font-size:12px;font-weight:${isToday?'600':'400'}">${d}${isConflict?' ⚠':''}</div>
+      ${abs.slice(0,3).map(a=>`<div class="cal-dot" style="background:${colors[a.status]||'#888'}"></div>`).join('')}
+      ${abs.length>3?`<div style="font-size:9px;color:var(--text3)">+${abs.length-3}</div>`:''}
+    </div>`;
+  }
+  const absencesThisMonth=solsCalendario.filter(s=>{
+    const m=`${year}-${String(month+1).padStart(2,'0')}`;
+    return (s.data_inicio.slice(0,7)===m||s.data_fim.slice(0,7)===m)&&['Aprovada','Realizada','Pendente'].includes(s.status);
+  });
+  return `<div id="content">
+    <div class="page-header"><div class="page-title">Calendário da equipe</div><div class="page-desc">${monthName}</div></div>
+    <div style="display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start">
+      <div class="card">
+        <div class="calendar-grid" style="margin-bottom:4px">${days.map(d=>`<div class="cal-header">${d}</div>`).join('')}</div>
+        <div class="calendar-grid">${cells}</div>
+        <div style="margin-top:14px;display:flex;gap:14px;font-size:11px;color:var(--text3);flex-wrap:wrap">
+          <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#059669;margin-right:4px"></span>Aprovada</span>
+          <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#d97706;margin-right:4px"></span>Pendente</span>
+          <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3730a3;margin-right:4px"></span>Realizada</span>
+          <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#fef3c7;border:1px solid #f59e0b;margin-right:4px"></span>⚠ Conflito</span>
+        </div>
+      </div>
+      <div>
+        ${conflictDays.size>0?`<div class="card mb-4" style="background:#fffbeb;border-color:#fcd34d">
+          <div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:10px">⚠️ Conflitos de cobertura</div>
+          <div style="font-size:12px;color:#92400e;line-height:1.6">
+            ${[...conflictDays].sort((a,b)=>a-b).map(day=>{
+              const squadsConflito=Object.entries(conflictsByDay[day]||{}).filter(([,set])=>set.size>=2).map(([squad,set])=>{
+                const nomes=[...set].map(id=>getUserById(id)?.name?.split(' ')[0]).join(', ');
+                return '<strong>'+squad+'</strong>: '+nomes;
+              }).join(' · ');
+              return '<div style="padding:4px 0;border-bottom:1px solid #fde68a">Dia <strong>'+day+'</strong> — '+squadsConflito+'</div>';
+            }).join('')}
+          </div>
+        </div>`:''}
+        <div class="card">
+          <div class="card-title" style="margin-bottom:12px">Ausências neste mês</div>
+          ${absencesThisMonth.length===0?`<div style="font-size:13px;color:var(--text3)">Nenhuma ausência registrada</div>`:
+          absencesThisMonth.map(s=>{const u=getUserById(s.user_id);return `<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+            <div><div style="font-size:13px;font-weight:500">${u?.name?.split(' ')[0]}</div><div style="font-size:11px;color:var(--text3)">${formatDate(s.data_inicio)} → ${formatDate(s.data_fim)}</div></div>
+            <div style="text-align:right"><span class="badge badge-info" style="font-size:10px">${s.tipo}</span><br><span style="font-size:10px;margin-top:2px;display:block">${getStatusBadge(s.status)}</span></div>
+          </div>`;}).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function viewAssistente() {
+  const u=state.currentUser; const saldo=getSaldo(u.id);
+  const context=`Contexto: Usuário ${u.name} (${u.role}), Departamento ${u.departamento||u.squad}. Saldo: ${saldo.saldo}/${saldo.diasCiclo} dias. Regras: PJ, 30 dias/ciclo corridos, folgas e férias no mesmo saldo, não acumula.`;
+  const suggestions=['Quando devo tirar minhas férias para não perder o saldo?','Quais são as regras de folga da empresa?','Posso dividir minhas férias em vários períodos?','Como funciona o cálculo de dias corridos?'];
+  return `<div id="content">
+    <div class="page-header"><div class="page-title">Assistente IA</div><div class="page-desc">Tire dúvidas sobre férias, folgas e regras</div></div>
+    ${state.aiResponse?`<div class="ai-bubble mb-6"><div class="ai-header">🤖 Resposta do assistente</div><div style="white-space:pre-wrap">${state.aiResponse}</div></div>`:''}
+    ${state.aiLoading?`<div class="card mb-6"><div class="loading"><div class="dot-pulse"></div>Consultando IA...</div></div>`:''}
+    <div class="card mb-6">
+      <div class="card-title" style="margin-bottom:12px">Perguntas frequentes</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${suggestions.map(q=>`<button class="btn btn-secondary" style="text-align:left;justify-content:flex-start" onclick="askAI(${JSON.stringify(context+'\n\nPergunta: '+q)})">💬 ${q}</button>`).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px">Fazer uma pergunta</div>
+      <div class="form-group"><label>Sua dúvida</label><textarea id="ai-question" placeholder="Ex: Tenho 8 dias de saldo, posso tirar férias em julho e agosto?" style="min-height:90px"></textarea></div>
+      <button class="btn btn-primary" onclick="const q=document.getElementById('ai-question').value;if(q.trim())askAI(${JSON.stringify(context)}+'\\n\\nPergunta: '+q)">🤖 Perguntar</button>
+    </div>
+  </div>`;
+}
+
+function viewUsuarios() {
+  const filtNome=(state.filtroUsuNome||'').toLowerCase(), filtDept=state.filtroUsuDept||'', filtSt=state.filtroUsuStatus||'';
+  const gestores=state.users.filter(x=>x.role==='gestor'||x.role==='admin');
+  const lista=state.users.filter(u=>{
+    if(filtNome&&!u.name.toLowerCase().includes(filtNome)&&!u.email.toLowerCase().includes(filtNome)) return false;
+    if(filtDept&&(u.departamento||u.squad)!==filtDept) return false;
+    if(filtSt&&u.status!==filtSt) return false;
+    return true;
+  });
+  const modalU=state.modalUsuario; const isNovo=modalU&&!modalU.id;
+  return `<div id="content">
+    <div class="page-header flex-between">
+      <div><div class="page-title">Gestão de Usuários</div><div class="page-desc">${state.users.length} usuários · ${state.users.filter(u=>u.status==='inativo').length} inativo(s)</div></div>
+      <button class="btn btn-primary" onclick="abrirModalUsuario(null)">+ Novo usuário</button>
+    </div>
+    <div class="card mb-4" style="padding:14px 16px">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px">
+        <div><label>Nome ou e-mail</label><input type="text" placeholder="Buscar..." value="${state.filtroUsuNome||''}" oninput="state.filtroUsuNome=this.value;render()"></div>
+        <div><label>Departamento</label><select onchange="state.filtroUsuDept=this.value;render()"><option value="">Todos</option>${DEPARTAMENTOS.map(d=>`<option value="${d}" ${filtDept===d?'selected':''}>${d}</option>`).join('')}</select></div>
+        <div><label>Status</label><select onchange="state.filtroUsuStatus=this.value;render()"><option value="">Todos</option><option value="ativo" ${filtSt==='ativo'?'selected':''}>Ativo</option><option value="inativo" ${filtSt==='inativo'?'selected':''}>Inativo</option></select></div>
+      </div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Usuário</th><th>E-mail</th><th>Departamento</th><th>Squad</th><th>Função</th><th>Perfil</th><th>Saldo</th><th>Status</th><th>Ações</th></tr></thead>
+      <tbody>
+        ${lista.length===0?`<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:28px">Nenhum usuário encontrado</td></tr>`:
+        lista.map(u=>{
+          const saldo=getSaldo(u.id); const st=getSaldoStatus(saldo.saldo,saldo.usados,30); const inativo=u.status==='inativo';
+          return `<tr style="${inativo?'opacity:.55':''}">
+            <td><div class="flex gap-2"><div class="avatar" style="width:28px;height:28px;font-size:11px;${inativo?'background:var(--text3)':''}">${u.avatar||u.name.slice(0,2)}</div>
+            <div style="font-size:13px;font-weight:500">${u.name}</div></div></td>
+            <td style="color:var(--text3);font-size:12px">${u.email}</td>
+            <td style="font-size:12px">${u.departamento||'—'}</td>
+            <td style="font-size:12px">${u.squad||'—'}</td>
+            <td style="font-size:12px">${u.funcao||'—'}</td>
+            <td><span class="badge ${u.role==='admin'?'badge-done':u.role==='gestor'?'badge-approved':'badge-info'}">${u.role}</span></td>
+            <td style="font-size:12px">${u.role!=='admin'?`<strong>${saldo.saldo}</strong>/30d`:'—'}</td>
+            <td><span class="badge ${inativo?'badge-cancelled':'badge-ok'}" style="font-size:10px">${inativo?'Inativo':'Ativo'}</span></td>
+            <td><div class="flex gap-2">
+              <button class="btn btn-secondary btn-sm" onclick="abrirModalUsuario(state.users.find(x=>x.id==='${u.id}'))">✏️ Editar</button>
+              <button class="btn btn-sm ${inativo?'btn-primary':'btn-danger'}" onclick="toggleStatus('${u.id}')">${inativo?'Reativar':'Inativar'}</button>
+            </div></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>
+    ${modalU?`<div class="modal-overlay" onclick="if(event.target===this){state.modalUsuario=null;render()}">
+      <div class="modal" style="width:560px">
+        <div class="modal-title">${isNovo?'Novo usuário':'Editar usuário'}</div>
+        <div class="modal-sub">${isNovo?'Preencha os dados para criar o acesso':'Altere os campos e salve'}</div>
+        <div class="form-row">
+          <div class="form-group"><label>Nome completo *</label><input type="text" id="mu-nome" value="${modalU.name||modalU.nome||''}" placeholder="Ex: Ana Silva"></div>
+          <div class="form-group"><label>E-mail corporativo *</label><input type="email" id="mu-email" value="${modalU.email||''}" placeholder="ana@empresa.com.br"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Departamento</label><select id="mu-dept">${DEPARTAMENTOS.map(d=>`<option value="${d}" ${(modalU.departamento||'')===d?'selected':''}>${d}</option>`).join('')}</select></div>
+          <div class="form-group"><label>Squad / Área</label><input type="text" id="mu-squad" value="${modalU.squad||''}" placeholder="Ex: SGE"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Cargo / Função</label><input type="text" id="mu-funcao" value="${modalU.funcao||''}" placeholder="Ex: Dev, PO, Gerente"></div>
+          <div class="form-group"><label>Perfil de acesso</label><select id="mu-role">
+            <option value="colaborador" ${(modalU.role||'')==='colaborador'?'selected':''}>Colaborador</option>
+            <option value="gestor"      ${(modalU.role||'')==='gestor'     ?'selected':''}>Gestor</option>
+            <option value="admin"       ${(modalU.role||'')==='admin'      ?'selected':''}>Admin</option>
+          </select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Gestor responsável</label><select id="mu-gestor"><option value="">Nenhum</option>
+            ${gestores.map(g=>`<option value="${g.id}" ${modalU.gestor_id===g.id?'selected':''}>${g.name}</option>`).join('')}
+          </select></div>
+          <div class="form-group"><label>Status</label><select id="mu-status">
+            <option value="ativo"   ${(modalU.status||'ativo')==='ativo'  ?'selected':''}>Ativo</option>
+            <option value="inativo" ${(modalU.status||'')==='inativo'?'selected':''}>Inativo</option>
+          </select></div>
+        </div>
+        ${isNovo?`<div class="alert alert-info" style="margin-top:4px">ℹ️ Uma senha temporária será enviada por e-mail ao novo usuário via Supabase.</div>`:''}
+        <div class="modal-actions">
+          <button class="btn btn-secondary" onclick="state.modalUsuario=null;render()">Cancelar</button>
+          <button class="btn btn-primary" onclick="salvarUsuario({
+            id:'${modalU.id||''}',
+            nome:document.getElementById('mu-nome').value,
+            email:document.getElementById('mu-email').value,
+            role:document.getElementById('mu-role').value,
+            funcao:document.getElementById('mu-funcao').value,
+            squad:document.getElementById('mu-squad').value,
+            departamento:document.getElementById('mu-dept').value,
+            gestorId:document.getElementById('mu-gestor').value,
+            status:document.getElementById('mu-status').value,
+          })">${isNovo?'Criar usuário':'Salvar alterações'}</button>
+        </div>
+      </div>
+    </div>`:''}
+  </div>`;
+}
+
+// ══════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════
+function render() {
+  const app = document.getElementById('app');
+  if (!state.currentUser) { app.innerHTML = viewLogin(); return; }
+  const viewMap = { dashboard:viewDashboard, minhas:viewMinhas, nova:viewNova, aprovacoes:viewAprovacoes, equipe:viewEquipe, calendario:viewCalendario, assistente:viewAssistente, usuarios:viewUsuarios };
+  const viewFn = viewMap[state.view] || viewDashboard;
+  const pending = getPendingDaArea(state.currentUser);
+  app.innerHTML = `
+  <div style="display:flex;min-height:100vh">
+    ${viewSidebar()}
+    <div id="main" style="flex:1;overflow-y:auto">
+      <div id="topbar">
+        <div style="font-size:13px;font-weight:500;color:var(--text2)">${
+          {dashboard:'📊 Dashboard',minhas:'📋 Minhas solicitações',nova:'➕ Nova solicitação',aprovacoes:'✅ Aprovações',equipe:'👥 Equipe',calendario:'📅 Calendário',assistente:'🤖 Assistente IA',usuarios:'⚙️ Usuários'}[state.view]||''
+        }</div>
+        <div class="flex gap-2">
+          ${pending>0&&(state.currentUser.role==='gestor'||state.currentUser.role==='admin')?`<button class="btn btn-danger btn-sm" onclick="state.view='aprovacoes';render()">${pending} pendente${pending>1?'s':''}</button>`:''}
+        </div>
+      </div>
+      ${viewFn()}
+    </div>
+  </div>
+  ${state.toast?`<div style="position:fixed;bottom:24px;right:24px;background:${state.toast.type==='error'?'var(--danger)':'var(--accent)'};color:white;padding:12px 20px;border-radius:var(--radius);box-shadow:var(--shadow-md);font-size:13px;font-weight:500;z-index:200;max-width:320px">${state.toast.msg}</div>`:''}`;
+}
+
+// ══════════════════════════════════════════
+// BOOT — verificar sessão existente
+// ══════════════════════════════════════════
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    const { data: profile } = await sb.from('users').select('*').eq('id', session.user.id).single();
+    if (profile && profile.status === 'ativo') {
+      state.currentUser = profile;
+      await loadAllData();
+    } else {
+      await sb.auth.signOut();
+    }
+  }
+  render();
+})();
+
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_OUT') {
+    state.currentUser = null;
+    state.users = []; state.colaboradores = []; state.solicitacoes = [];
+    render();
+  }
+});
+</script>
+</body>
+</html>
