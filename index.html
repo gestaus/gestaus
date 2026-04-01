@@ -214,7 +214,8 @@ let state = {
   peopleSelected: [], peopleFiltroUser: '', peopleFiltroInicio: '', peopleFiltroFim: '',
 };
 
-const DEPARTAMENTOS = ['Inovação & Desenvolvimento','Dados','Infraestrutura e Serviços','Produto','Operações'];
+const DEPARTAMENTOS = ['Tecnologia','People','Operações','Produto','Financeiro','Jurídico','Comercial'];
+const AREAS = ['Inovação & Desenvolvimento de Software','Infraestrutura e Serviços','Dados','Produto Digital','Experiência do Cliente','Estratégia e Projetos','Outras'];
 
 // ══════════════════════════════════════════
 // SUPABASE — operações de dados
@@ -547,7 +548,8 @@ function togglePeopleSelect(id) {
 async function salvarUsuario(form) {
   const nome = form.nome.trim(); const email = form.email.trim().toLowerCase();
   if (!nome || !email) { showToast('Nome e e-mail são obrigatórios', 'error'); return; }
-  // REGRA: gestor deve ter departamento obrigatório
+  if (!form.departamento) { showToast('Departamento é obrigatório', 'error'); return; }
+  if (!form.squad) { showToast('Área é obrigatória', 'error'); return; }
   if (form.role === 'gestor' && !form.departamento) { showToast('Gestor deve ter um departamento vinculado', 'error'); return; }
   if (!form.id && !form.inicioContrato) { showToast('Data de admissão é obrigatória', 'error'); return; }
   try {
@@ -1557,7 +1559,7 @@ function viewUsuarios() {
       </div>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Usuário</th><th>E-mail</th><th>Departamento</th><th>Squad</th><th>Função</th><th>Perfil</th><th>Saldo</th><th>Status</th><th>Ações</th></tr></thead>
+      <thead><tr><th>Usuário</th><th>E-mail</th><th>Departamento</th><th>Área</th><th>Função</th><th>Perfil</th><th>Saldo</th><th>Status</th><th>Ações</th></tr></thead>
       <tbody>
         ${lista.length===0?`<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:28px">Nenhum usuário encontrado</td></tr>`:
         lista.map(u=>{
@@ -1567,7 +1569,7 @@ function viewUsuarios() {
             <div style="font-size:13px;font-weight:500">${u.name}</div></div></td>
             <td style="color:var(--text3);font-size:12px">${u.email}</td>
             <td style="font-size:12px">${u.departamento||'—'}</td>
-            <td style="font-size:12px">${u.squad||'—'}</td>
+            <td style="font-size:12px;color:var(--text2)">${u.squad||'—'}</td>
             <td style="font-size:12px">${u.funcao||'—'}</td>
             <td><span class="badge ${u.role==='admin'?'badge-done':u.role==='gestor'?'badge-approved':'badge-info'}">${u.role}</span></td>
             <td style="font-size:12px">${u.role!=='admin'?`<strong>${saldo.saldo}</strong>/30d`:'—'}</td>
@@ -1589,24 +1591,32 @@ function viewUsuarios() {
           <div class="form-group"><label>E-mail corporativo *</label><input type="email" id="mu-email" value="${modalU.email||''}" placeholder="ana@empresa.com.br"></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Departamento</label>
+          <div class="form-group">
+            <label>Departamento *</label>
             <select id="mu-dept" onchange="
               const dept=this.value;
               const gestorEl=document.getElementById('mu-gestor');
               const warnEl=document.getElementById('mu-role-warn');
               const roleEl=document.getElementById('mu-role');
-              // preencher gestor automaticamente pelo departamento
               if(gestorEl && dept){
                 const gestorDoDept=state.users.find(x=>x.role==='gestor'&&(x.departamento||x.squad)===dept);
                 if(gestorDoDept) gestorEl.value=gestorDoDept.id;
               }
-              // ocultar aviso se departamento foi preenchido
               if(warnEl&&roleEl&&roleEl.value==='gestor') warnEl.style.display=dept?'none':'block';
             ">
+              <option value="">Selecione o departamento</option>
               ${DEPARTAMENTOS.map(d=>`<option value="${d}" ${(modalU.departamento||'')===d?'selected':''}>${d}</option>`).join('')}
             </select>
+            <div class="form-hint">Estrutura macro da organização</div>
           </div>
-          <div class="form-group"><label>Squad / Área</label><input type="text" id="mu-squad" value="${modalU.squad||''}" placeholder="Ex: SGE"></div>
+          <div class="form-group">
+            <label>Área *</label>
+            <select id="mu-squad">
+              <option value="">Selecione a área</option>
+              ${AREAS.map(a=>`<option value="${a}" ${(modalU.squad||'')===a?'selected':''}>${a}</option>`).join('')}
+            </select>
+            <div class="form-hint">Equipe específica dentro do departamento</div>
+          </div>
         </div>
         <div class="form-row">
           <div class="form-group"><label>Cargo / Função</label><input type="text" id="mu-funcao" value="${modalU.funcao||''}" placeholder="Ex: Dev, PO, Gerente"></div>
