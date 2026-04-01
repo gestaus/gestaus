@@ -324,9 +324,9 @@ function getStatusBadge(status, sol) {
   // complemento de ciência People — apenas informativo, não altera status
   if (sol && status === 'Aprovada') {
     if (sol.people_acknowledged) {
-      badge += ` <span class="badge" style="background:#d1fae5;color:#065f46;font-size:10px">✓ People ciente</span>`;
+      badge += ` <span class="badge" style="background:#d1fae5;color:#065f46;font-size:10px">✓ People confirmado</span>`;
     } else {
-      badge += ` <span class="badge" style="background:#fef3c7;color:#92400e;font-size:10px">⏳ Aguarda People</span>`;
+      badge += ` <span class="badge" style="background:#fef3c7;color:#92400e;font-size:10px">⏳ Aguarda confirmação</span>`;
     }
   }
   return badge;
@@ -481,11 +481,11 @@ async function registrarCiencia(ids) {
       }).eq('id', id);
     }
     state.peopleSelected = [];
-    showToast(ids.length > 1 ? ids.length + ' ciências registradas ✓' : 'Ciência registrada ✓');
+    showToast(ids.length > 1 ? ids.length + ' ciências registradas ✓' : 'Confirmação registrada ✓');
     render();
   } catch(e) {
     // fallback: atualiza só local se banco não tiver coluna ainda
-    showToast('Ciência registrada localmente ✓');
+    showToast('Confirmação registrada localmente ✓');
     state.peopleSelected = [];
     render();
   }
@@ -642,8 +642,8 @@ function viewSidebar() {
         <span class="nav-chevron ${subCls}">›</span>
       </div>
       <div class="nav-sub ${subCls}">
-        ${(u.role==='gestor'||u.role==='admin') ? navSub('aprovacoes','✅','Aprovações', pending||'') : ''}
-        ${(u.role==='people'||u.role==='admin') ? navSub('people','👁️','Ciência People', peopleCount||'') : ''}
+        ${(u.role==='gestor'||u.role==='admin') ? navSub('aprovacoes','✅','Aprovação do Gestor', pending||'') : ''}
+        ${(u.role==='people'||u.role==='admin') ? navSub('people','👁️','Confirmação do People', peopleCount||'') : ''}
       </div>` : ''}
 
       ${u.role==='admin' ? `
@@ -694,9 +694,9 @@ function viewDashboard() {
         </div>
         ${minhasSols.length===0?`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma ausência registrada ainda</div></div>`:`
         <div class="table-wrap"><table>
-          <thead><tr><th>Tipo</th><th>Período</th><th>Dias</th><th>Status</th><th>Obs</th></tr></thead>
+          <thead><tr><th>Período</th><th>Dias</th><th>Status</th><th>Obs</th></tr></thead>
           <tbody>${minhasSols.slice(0,5).map(s=>`<tr>
-            <td><span class="badge badge-info">${s.tipo}</span></td>
+            
             <td>${formatDate(s.data_inicio)} → ${formatDate(s.data_fim)}</td>
             <td>${s.dias}d</td><td>${getStatusBadge(s.status)}</td>
             <td style="color:var(--text3);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.obs||'—'}</td>
@@ -796,7 +796,7 @@ function viewDashboard() {
           <div><div class="card-title">Ausências registradas</div>
           <div class="card-sub">${solsFiltradas.length} registro(s)</div></div>
         </div>
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:var(--radius-sm)">
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:var(--radius-sm)">
           <div><label>Departamento</label>
             <select onchange="state.adminDashDept=this.value;state.adminDashUser='';render()">
               <option value="">Todos</option>
@@ -812,23 +812,17 @@ function viewDashboard() {
               <option value="">Todos</option>
               ${['Pendente','Aprovada','Recusada','Realizada','Cancelada'].map(s=>`<option value="${s}" ${adSt===s?'selected':''}>${s}</option>`).join('')}
             </select></div>
-          <div><label>Tipo</label>
-            <select onchange="state.adminDashTipo=this.value;render()">
-              <option value="">Todos</option>
-              <option value="Férias" ${adTipo==='Férias'?'selected':''}>Férias</option>
-              <option value="Folga"  ${adTipo==='Folga' ?'selected':''}>Folga</option>
-            </select></div>
+
         </div>
         ${solsFiltradas.length===0?`<div class="empty-state" style="padding:24px"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma ausência registrada encontrada</div></div>`:`
         <div class="table-wrap"><table>
-          <thead><tr><th>Colaborador</th><th>Departamento</th><th>Tipo</th><th>Período</th><th>Dias</th><th>Status</th><th>Criado em</th></tr></thead>
+          <thead><tr><th>Colaborador</th><th>Departamento</th><th>Período</th><th>Dias</th><th>Status</th><th>Criado em</th></tr></thead>
           <tbody>${solsFiltradas.slice(0,15).map(s=>{
             const usr=getUserById(s.user_id);
             return `<tr>
               <td><div class="flex gap-2"><div class="avatar" style="width:24px;height:24px;font-size:10px">${usr?.avatar||'??'}</div>
               <div><div style="font-size:13px;font-weight:500">${usr?.name||'—'}</div><div style="font-size:11px;color:var(--text3)">${usr?.funcao||''}</div></div></div></td>
               <td style="font-size:12px;color:var(--text2)">${usr?.departamento||usr?.squad||'—'}</td>
-              <td><span class="badge badge-info">${s.tipo}</span></td>
               <td style="font-size:12px">${formatDate(s.data_inicio)} → ${formatDate(s.data_fim)}</td>
               <td style="font-size:12px">${s.dias}d</td>
               <td>${getStatusBadge(s.status)}</td>
@@ -903,11 +897,11 @@ function viewDashboard() {
       </div>
       ${solsFiltradas.length===0?`<div class="empty-state" style="padding:24px"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma ausência registrada encontrada</div></div>`:`
       <div class="table-wrap"><table>
-        <thead><tr><th>Colaborador</th><th>Tipo</th><th>Período</th><th>Dias</th><th>Status</th><th>Observação</th></tr></thead>
+        <thead><tr><th>Colaborador</th><th>Período</th><th>Dias</th><th>Status</th><th>Observação</th></tr></thead>
         <tbody>${solsFiltradas.slice(0,10).map(s=>{const usr=getUserById(s.user_id);return `<tr>
           <td><div class="flex gap-2"><div class="avatar" style="width:24px;height:24px;font-size:10px">${usr?.avatar||'??'}</div>
           <div><div style="font-size:13px;font-weight:500">${usr?.name?.split(' ')[0]||'—'}</div><div style="font-size:11px;color:var(--text3)">${usr?.funcao||''}</div></div></div></td>
-          <td><span class="badge badge-info">${s.tipo}</span></td>
+          
           <td style="font-size:12px">${formatDate(s.data_inicio)} → ${formatDate(s.data_fim)}</td>
           <td style="font-size:12px">${s.dias}d</td><td>${getStatusBadge(s.status)}</td>
           <td style="color:var(--text3);font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.obs||'—'}</td>
@@ -927,9 +921,9 @@ function viewMinhas() {
     </div>
     ${sols.length===0?`<div class="empty-state card" style="padding:56px 20px"><div class="empty-icon">📋</div><div class="empty-text" style="margin-bottom:8px">Nenhuma ausência registrada ainda</div><div class="empty-sub">Clique em "+ Nova solicitação" para registrar férias ou folga</div></div>`:`
     <div class="table-wrap"><table>
-      <thead><tr><th>Tipo</th><th>Data início</th><th>Data fim</th><th>Dias</th><th>Status</th><th>Observação</th><th>Ações</th></tr></thead>
+      <thead><tr><th>Data início</th><th>Data fim</th><th>Dias</th><th>Status</th><th>Observação</th><th>Ações</th></tr></thead>
       <tbody>${sols.map(s=>`<tr>
-        <td><span class="badge badge-info">${s.tipo}</span></td>
+        
         <td>${formatDate(s.data_inicio)}</td><td>${formatDate(s.data_fim)}</td>
         <td>${s.dias}d</td><td>${getStatusBadge(s.status)}</td>
         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text3)">${s.obs||'—'}</td>
@@ -986,8 +980,7 @@ function viewNova() {
     : '<div id="nova-preview" style="display:none;margin-top:14px"></div>';
 
   const btnDisabled = dias <= 0 || saldoApos < 0 ? 'disabled' : '';
-  const tipoFerias  = state.newReq.tipo === 'Férias' ? 'selected' : '';
-  const tipoFolga   = state.newReq.tipo === 'Folga'  ? 'selected' : '';
+  state.newReq.tipo = 'Férias'; /* tipo fixo — sem seletor na UI */
 
   return '<div id="content">'
     + '<div class="page-header" style="margin-bottom:24px">'
@@ -997,11 +990,7 @@ function viewNova() {
     + '<div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start">'
 
     + '<div class="card">'
-    + '<div class="form-group"><label>Tipo de ausência</label>'
-    + '<select onchange="state.newReq.tipo=this.value;render()">'
-    + '<option value="Férias" ' + tipoFerias + '>📅 Ausência programada</option>'
-    + '<option value="Folga"  ' + tipoFolga  + '>📅 Ausência programada (curta)</option>'
-    + '</select></div>'
+    /* tipo fixo internamente como 'Férias' — sem exposição na UI */
 
     + '<div class="form-row" style="gap:16px">'
     + '<div class="form-group" style="margin-bottom:0"><label>Data de início</label>'
@@ -1068,7 +1057,7 @@ function viewAprovacoes() {
   if(filtroFim) pendentes=pendentes.filter(s=>s.data_fim<=filtroFim);
   const totalPendentes=solsDaArea.filter(s=>s.status==='Pendente').length;
   return `<div id="content">
-    <div class="page-header"><div class="page-title">Aprovações de ausência${u.role==='gestor'?' — '+(u.departamento||u.squad):''}</div>
+    <div class="page-header"><div class="page-title">Aprovação do Gestor${u.role==='gestor'?' — '+(u.departamento||u.squad):''}</div>
     <div class="page-desc">${totalPendentes} ausência(s) pendente(s)</div></div>
     <div class="card mb-4" style="padding:14px 16px">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;align-items:end">
@@ -1180,7 +1169,7 @@ function viewEquipe() {
             <thead>
               <tr>
                 <th>Colaborador</th>
-                <th>Tipo</th>
+                
                 <th>Início</th>
                 <th>Fim</th>
                 <th>Dias</th>
@@ -1195,7 +1184,7 @@ function viewEquipe() {
                   +'<div class="avatar" style="width:26px;height:26px;font-size:10px">'+(usr?.avatar||usr?.name?.slice(0,2)||'??')+'</div>'
                   +'<div><div style="font-size:13px;font-weight:500">'+(usr?.name||'—')+'</div>'
                   +'<div style="font-size:11px;color:var(--text3)">'+(usr?.funcao||'')+'</div></div></div></td>'
-                  +'<td><span class="badge badge-info">'+s.tipo+'</span></td>'
+                  
                   +'<td style="font-size:12px">'+formatDate(s.data_inicio)+'</td>'
                   +'<td style="font-size:12px">'+formatDate(s.data_fim)+'</td>'
                   +'<td style="font-size:12px">'+s.dias+'d</td>'
@@ -1236,26 +1225,26 @@ function viewPeople() {
   return `<div id="content">
     <div class="page-header flex-between" style="margin-bottom:24px">
       <div>
-        <div class="page-title">Ciência People</div>
-        <div class="page-desc">${pendenteCiencia.length} ausência(s) aguardando ciência · ${comCiencia.length} finalizada(s)</div>
+        <div class="page-title">Confirmação do People</div>
+        <div class="page-desc">${pendenteCiencia.length} ausência(s) aguardando confirmação · ${comCiencia.length} finalizada(s)</div>
       </div>
       ${state.peopleSelected.length > 0 ? `
       <button class="btn btn-primary" onclick="registrarCiencia([${state.peopleSelected.join(',')}])">
-        ✓ Registrar ciência (${state.peopleSelected.length} selecionada${state.peopleSelected.length>1?'s':''})
+        ✓ Confirmar (${state.peopleSelected.length} selecionada${state.peopleSelected.length>1?'s':''})
       </button>` : ''}
     </div>
 
     <!-- Resumo -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
       <div class="stat-card">
-        <div class="stat-label">Aguardando ciência</div>
+        <div class="stat-label">Aguardando confirmação</div>
         <div class="stat-value ${pendenteCiencia.length>0?'stat-amber':'stat-green'}">${pendenteCiencia.length}</div>
         <div class="stat-sub">ausência(s) pendentes</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Ciência registrada</div>
+        <div class="stat-label">Confirmação registrada</div>
         <div class="stat-value stat-green">${comCiencia.length}</div>
-        <div class="stat-sub">ausência(s) finalizadas</div>
+        <div class="stat-sub">ausência(s) confirmadas</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Selecionadas</div>
@@ -1285,12 +1274,12 @@ function viewPeople() {
       </div>
     </div>
 
-    <!-- Lista aguardando ciência -->
+    <!-- Lista aguardando confirmação -->
     ${lista.length === 0
-      ? `<div class="empty-state card"><div class="empty-icon">✅</div><div class="empty-text">Nenhuma ausência aguardando ciência</div><div class="empty-sub">Todas as ausências aprovadas já foram registradas</div></div>`
+      ? `<div class="empty-state card"><div class="empty-icon">✅</div><div class="empty-text">Nenhuma ausência aguardando confirmação</div><div class="empty-sub">Todas as ausências aprovadas já foram confirmadas</div></div>`
       : `<div class="card mb-4">
           <div class="flex-between mb-4">
-            <div><div class="card-title">Aguardando ciência</div><div class="card-sub">${lista.length} ausência(s)</div></div>
+            <div><div class="card-title">Aguardando confirmação</div><div class="card-sub">${lista.length} ausência(s)</div></div>
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
               <input type="checkbox" ${todasSelecionadas?'checked':''}
                 onchange="if(this.checked){state.peopleSelected=[...new Set([...state.peopleSelected,...[${todosIds.join(',')}]])]}else{state.peopleSelected=state.peopleSelected.filter(id=>![${todosIds.join(',')}].includes(id))};render()">
@@ -1299,7 +1288,7 @@ function viewPeople() {
           </div>
           <div class="table-wrap" style="border:none">
             <table>
-              <thead><tr><th style="width:40px"></th><th>Colaborador</th><th>Tipo</th><th>Período</th><th>Dias</th><th>Aprovado por</th><th>Ação</th></tr></thead>
+              <thead><tr><th style="width:40px"></th><th>Colaborador</th><th>Período</th><th>Dias</th><th>Aprovado por</th><th>Ação</th></tr></thead>
               <tbody>
                 ${lista.map(s => {
                   const usr = getUserById(s.user_id);
@@ -1315,13 +1304,12 @@ function viewPeople() {
                         </div>
                       </div>
                     </td>
-                    <td><span class="badge badge-info">${s.tipo}</span></td>
                     <td style="font-size:12px">${formatDate(s.data_inicio)} → ${formatDate(s.data_fim)}</td>
                     <td style="font-size:12px">${s.dias}d</td>
                     <td style="font-size:12px;color:var(--text3)">${s.obs||'—'}</td>
                     <td>
                       <button class="btn btn-primary btn-sm" onclick="registrarCiencia([${s.id}])">
-                        ✓ Ciente
+                        ✓ Confirmar
                       </button>
                     </td>
                   </tr>`;
@@ -1334,10 +1322,10 @@ function viewPeople() {
     <!-- Lista com ciência registrada -->
     ${comCiencia.length > 0 ? `
     <div class="card">
-      <div class="card-title" style="margin-bottom:14px">Ciência registrada</div>
+      <div class="card-title" style="margin-bottom:14px">Confirmação registrada</div>
       <div class="table-wrap" style="border:none">
         <table>
-          <thead><tr><th>Colaborador</th><th>Tipo</th><th>Período</th><th>Registrado por</th><th>Data ciência</th></tr></thead>
+          <thead><tr><th>Colaborador</th><th>Período</th><th>Confirmado por</th><th>Data confirmação</th></tr></thead>
           <tbody>
             ${comCiencia.slice(0,10).map(s => {
               const usr = getUserById(s.user_id);
@@ -1348,7 +1336,7 @@ function viewPeople() {
                     <div style="font-size:13px;font-weight:500">${usr?.name||'—'}</div>
                   </div>
                 </td>
-                <td><span class="badge badge-info">${s.tipo}</span></td>
+                
                 <td style="font-size:12px">${formatDate(s.data_inicio)} → ${formatDate(s.data_fim)}</td>
                 <td style="font-size:12px;color:var(--text3)">${s.people_acknowledged_by||'—'}</td>
                 <td style="font-size:12px;color:var(--text3)">${s.people_acknowledged_at?formatDate(s.people_acknowledged_at.slice(0,10)):'—'}</td>
@@ -1619,7 +1607,7 @@ function render() {
     <div id="main" style="flex:1;overflow-y:auto">
       <div id="topbar">
         <div style="font-size:13px;font-weight:500;color:var(--text2)">${
-          {dashboard:'📊 Dashboard',minhas:'📋 Minhas ausências',nova:'➕ Nova solicitação',aprovacoes:'✅ Aprovações de ausência',equipe:'👥 Equipe',calendario:'📅 Calendário',assistente:'🤖 Assistente IA',usuarios:'⚙️ Usuários',people:'👁️ Ciência People'}[state.view]||''
+          {dashboard:'📊 Dashboard',minhas:'📋 Minhas ausências',nova:'➕ Nova solicitação',aprovacoes:'✅ Aprovação do Gestor',equipe:'👥 Equipe',calendario:'📅 Calendário',assistente:'🤖 Assistente IA',usuarios:'⚙️ Usuários',people:'👁️ Confirmação do People'}[state.view]||''
         }</div>
         <div class="flex gap-2">
           ${pending>0&&(state.currentUser.role==='gestor'||state.currentUser.role==='admin')?`<button class="btn btn-danger btn-sm" onclick="state.view='aprovacoes';render()">${pending} pendente${pending>1?'s':''}</button>`:''}
