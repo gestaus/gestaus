@@ -267,23 +267,49 @@ async function dbSalvarUsuario(form) {
       }
     }
   } else {
-    // criar via Supabase Auth
-    const { data: authData, error: authErr } = await sb.auth.admin ? 
-      // se tiver service role use admin.createUser; do contrário use signUp
-      sb.auth.signUp({ email: form.email, password: form.senha || '123456gestaus', options: {
-        data: { name: form.nome, role: form.role, squad: form.squad, funcao: form.funcao, departamento: form.departamento }
-      }}) :
-      sb.auth.signUp({ email: form.email, password: '123456gestaus', options: {
-        data: { name: form.nome, role: form.role, squad: form.squad, funcao: form.funcao, departamento: form.departamento }
-      }});
-    if (authErr) throw authErr;
-    // inserir ficha de colaborador
-    if (authData?.user && form.role !== 'admin') {
-      await sb.from('colaboradores').insert([{
-        user_id: authData.user.id,
-        inicio_contrato: new Date().toISOString().slice(0,10),
-        dias_ciclo: 30,
-      }]);
+    // Criar via invite — funciona mesmo com signUp desativado
+    const { data: authData, error: authErr } = await sb.auth.signInWithPassword({
+      email: 'dummy', password: 'dummy'
+    }).catch(() => ({ data: null, error: null }));
+
+    // Usar inviteUserByEmail que funciona com signUp desativado
+    const { data: inviteData, error: inviteErr } = await sb.auth.admin?.inviteUserByEmail
+      ? await sb.auth.admin.inviteUserByEmail(form.email, {
+          data: { name: form.nome, role: form.role, squad: form.squad, funcao: form.funcao, departamento: form.departamento }
+        })
+      : await fetch('https://qbyoprtefkdgcnhedxtf.supabase.co/auth/v1/invite', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFieW9wcnRlZmtkZ2NuaGVkeHRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTk1MzUsImV4cCI6MjA5MDQ3NTUzNX0.9C92opyhCNewB9vRzigfx_Tmz-SFpXMhwKZ0YCe2XLQ',
+            'Authorization': 'Bearer ' + ((await sb.auth.getSession()).data.session?.access_token || '')
+          },
+          body: JSON.stringify({ email: form.email })
+        }).then(async r => {
+          const d = await r.json();
+          if (!r.ok) return { data: null, error: d };
+          return { data: { user: d }, error: null };
+        });
+
+    if (inviteErr) throw new Error(inviteErr.message || 'Erro ao criar usuário. Verifique o e-mail.');
+
+    const newUserId = inviteData?.user?.id;
+    if (newUserId) {
+      // atualizar perfil com dados completos
+      await sb.from('users').update({
+        name: form.nome, role: form.role, squad: form.squad,
+        funcao: form.funcao, departamento: form.departamento,
+        gestor_id: form.gestorId || null, status: 'ativo',
+      }).eq('id', newUserId);
+
+      // inserir ficha de colaborador
+      if (form.role !== 'admin') {
+        await sb.from('colaboradores').insert([{
+          user_id: newUserId,
+          inicio_contrato: form.inicioContrato || new Date().toISOString().slice(0,10),
+          dias_ciclo: form.diasCiclo || 30,
+        }]);
+      }
     }
   }
   await loadAllData();
