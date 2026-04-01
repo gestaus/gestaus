@@ -386,11 +386,24 @@ function showToast(msg, type='success') {
   setTimeout(() => { state.toast = null; render(); }, 3500);
 }
 
+function _idsVisivelParaGestor(u) {
+  // Colaboradores vinculados diretamente a este gestor
+  const idsVinculados = state.users
+    .filter(x => x.gestor_id === u.id && x.role !== 'admin')
+    .map(x => x.id);
+  // Fallback: colaboradores sem gestor no mesmo departamento
+  const meuDept = u.departamento || u.squad;
+  const idsSemGestor = state.users
+    .filter(x => !x.gestor_id && (x.departamento||x.squad) === meuDept && x.role !== 'admin')
+    .map(x => x.id);
+  return [...new Set([...idsVinculados, ...idsSemGestor])];
+}
+
 function getSolicitacoesDaArea(u) {
   if (!u) return [];
   if (u.role === 'admin') return state.solicitacoes;
   if (u.role === 'gestor') {
-    const ids = state.users.filter(x => (x.departamento||x.squad) === (u.departamento||u.squad) && x.role !== 'admin').map(x => x.id);
+    const ids = _idsVisivelParaGestor(u);
     return state.solicitacoes.filter(s => ids.includes(s.user_id));
   }
   return state.solicitacoes.filter(s => s.user_id === u.id);
@@ -404,7 +417,7 @@ function getColaboradoresDaArea(u) {
   if (!u) return [];
   if (u.role === 'admin') return state.colaboradores;
   if (u.role === 'gestor') {
-    const ids = state.users.filter(x => (x.departamento||x.squad) === (u.departamento||u.squad) && x.role !== 'admin').map(x => x.id);
+    const ids = _idsVisivelParaGestor(u);
     return state.colaboradores.filter(c => ids.includes(c.user_id));
   }
   return state.colaboradores.filter(c => c.user_id === u.id);
