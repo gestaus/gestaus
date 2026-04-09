@@ -1,4 +1,15 @@
-<!DOCTYPE html>
+    ${pending>0||criticos>0?`
+    <div class="attention-block">
+      <div class="attention-title">⚠ Requer atenção</div>
+      ${pending>0?`<div class="attention-item"><span style="font-size:12px">${pending} ausência${pending!==1?'s':''} aguardando sua aprovação</span><button class="btn btn-secondary btn-sm" onclick="state.view='aprovacoes';render()">Aprovar →</button></div>`:''}
+      ${criticos>0?`<div class="attention-item"><span style="font-size:12px">${criticos} prestador${criticos!==1?'es':''} com limite ≥90% do ciclo</span><button class="btn btn-secondary btn-sm" onclick="state.view='equipe';render()">Ver equipe →</button></div>`:''}
+    </div>`:''}
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">Equipe</div><div class="stat-value stat-blue">${equipe.length+1}</div><div class="stat-sub">colaboradores no departamento</div></div>
+      <div class="stat-card"><div class="stat-label">Pendentes</div><div class="stat-value ${pending>0?'stat-amber':'stat-green'}">${pending}</div><div class="stat-sub">aguardando sua decisão</div></div>
+      <div class="stat-card"><div class="stat-label">Próximas ausências</div><div class="stat-value stat-blue">${proximas.length}</div><div class="stat-sub">agendadas na equipe</div></div>
+      <div class="stat-card"><div class="stat-label">Limite crítico</div><div class="stat-value ${criticos>0?'stat-red':'stat-green'}">${criticos}</div><div class="stat-sub">prestadores ≥90% do limite</div></div>
+    </div><!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -137,9 +148,14 @@
   .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;border-top:1px solid var(--border);padding-top:18px}
 
   /* Misc */
-  .page-header{margin-bottom:24px}
-  .page-title{font-size:18px;font-weight:600;letter-spacing:-.3px}
-  .page-desc{font-size:13px;color:var(--text3);margin-top:3px}
+  .page-header{margin-bottom:20px}
+  .page-title{font-size:17px;font-weight:600;letter-spacing:-.3px;line-height:1.3}
+  .page-desc{font-size:12px;color:var(--text3);margin-top:3px;line-height:1.4}
+  .attention-block{background:#fffbeb;border:1px solid #fde68a;border-left:3px solid #f59e0b;border-radius:var(--radius);padding:14px 16px;margin-bottom:20px}
+  .attention-title{font-size:11px;font-weight:600;color:#92400e;margin-bottom:8px;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.4px}
+  .attention-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #fde68a}
+  .attention-item:last-child{border-bottom:none;padding-bottom:0}
+  .form-section-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin:16px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);display:block}
   .divider{border:none;border-top:1px solid var(--border);margin:20px 0}
   .empty-state{text-align:center;padding:48px 20px;color:var(--text3)}
   .empty-icon{font-size:32px;margin-bottom:14px;opacity:.45;display:block}
@@ -536,7 +552,7 @@ async function criarSolicitacao() {
     });
     state.newReq = { tipo: 'Férias', dataInicio: '', dataFim: '', obs: '' };
     state.modal = null;
-    showToast('Ausência enviada para aprovação ✓');
+    showToast('Solicitação enviada para o gestor ✓');
   } catch(e) { showToast('Erro ao criar solicitação', 'error'); }
 }
 
@@ -544,7 +560,7 @@ async function aprovar(id) {
   try {
     await dbAtualizarSolicitacao(id, { status: 'Aprovada', obs: state.approvalObs || 'Aprovado' });
     state.approvalModal = null; state.approvalObs = '';
-    showToast('Ausência aprovada ✓');
+    showToast('Solicitação aprovada com sucesso ✓');
   } catch(e) { showToast('Erro ao aprovar', 'error'); }
 }
 
@@ -559,7 +575,7 @@ async function recusar(id) {
 async function cancelar(id) {
   try {
     await dbAtualizarSolicitacao(id, { status: 'Cancelada' });
-    showToast('Ausência cancelada');
+    showToast('Solicitação cancelada');
   } catch(e) { showToast('Erro ao cancelar', 'error'); }
 }
 
@@ -829,11 +845,32 @@ function viewDashboard() {
         <div class="page-desc">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div></div>
         <button class="btn btn-primary" onclick="state.view='nova';render()">+ Nova solicitação</button>
       </div>
+      ${minhasSols.filter(s=>s.status==='Pendente').length>0?`
+      <div class="attention-block">
+        <div class="attention-title">⏳ Aguardando aprovação do gestor</div>
+        ${minhasSols.filter(s=>s.status==='Pendente').slice(0,3).map(s=>`
+        <div class="attention-item">
+          <span style="font-size:12px;color:var(--text2)">${formatDate(s.data_inicio)} → ${formatDate(s.data_fim)} · ${s.dias} dia${s.dias!==1?'s':''}</span>
+          <span class="badge badge-pending">Pendente</span>
+        </div>`).join('')}
+      </div>`:''}
       <div class="stat-grid">
-        <div class="stat-card"><div class="stat-label">Limite disponível</div><div class="stat-value stat-green">${saldo.saldo}</div><div class="stat-sub">de ${saldo.diasCiclo} dias no período</div><div class="progress-bar" style="margin-top:8px"><div class="progress-fill ${barCls}" style="width:${pct}%"></div></div></div>
-        <div class="stat-card"><div class="stat-label">Dias utilizados</div><div class="stat-value stat-amber">${saldo.usados}</div><div class="stat-sub">no período atual</div></div>
-        <div class="stat-card"><div class="stat-label">Minhas ausências</div><div class="stat-value stat-blue">${minhasSols.length}</div><div class="stat-sub">${minhasSols.filter(s=>s.status==='Pendente').length} pendente(s)</div></div>
-        <div class="stat-card"><div class="stat-label">Status ciclo</div><div style="margin-top:8px"><span class="badge ${st.cls}">${st.label}</span></div><div class="stat-sub" style="margin-top:6px">${pct}% utilizado</div></div>
+        <div class="stat-card">
+          <div class="stat-label">Limite disponível</div>
+          <div class="stat-value stat-green">${saldo.saldo}d</div>
+          <div class="progress-bar" style="margin-top:8px"><div class="progress-fill ${barCls}" style="width:${pct}%"></div></div>
+          <div class="stat-sub" style="margin-top:5px">${pct}% de ${saldo.diasCiclo}d utilizados</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Status do ciclo</div>
+          <div style="margin:8px 0"><span class="badge ${st.cls}">${st.label}</span></div>
+          <div class="stat-sub">${saldo.usados}d usados · ${saldo.saldo}d restantes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Solicitações</div>
+          <div class="stat-value stat-blue">${minhasSols.length}</div>
+          <div class="stat-sub">${minhasSols.filter(s=>['Aprovada','Realizada'].includes(s.status)).length} aprovada${minhasSols.filter(s=>['Aprovada','Realizada'].includes(s.status)).length!==1?'s':''} · ${minhasSols.filter(s=>s.status==='Pendente').length} pendente${minhasSols.filter(s=>s.status==='Pendente').length!==1?'s':''}</div>
+        </div>
       </div>
       <div class="card mb-6">
         <div class="flex-between mb-4">
@@ -887,58 +924,25 @@ function viewDashboard() {
     });
     const solsFiltradas=solsBase.slice();
     return `<div id="content">
+      <div class="breadcrumb"><span>Portal People</span><span class="breadcrumb-sep">›</span><span>Disponibilidade PJ</span><span class="breadcrumb-sep">›</span><span>Dashboard</span></div>
       <div class="page-header flex-between">
         <div><div class="page-title">Painel executivo</div>
-        <div class="page-desc">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · visão global</div></div>
-        <button class="btn btn-primary" onclick="state.view='usuarios';render()">⚙️ Gestão de usuários</button>
+        <div class="page-desc">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div></div>
+        <button class="btn btn-primary" onclick="state.view='usuarios';render()">+ Novo usuário</button>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px">
-        <div class="stat-card"><div class="stat-label">Usuários ativos</div><div class="stat-value stat-green">${ativos}</div><div class="stat-sub">${inativos} inativo(s)</div></div>
-        <div class="stat-card"><div class="stat-label">Departamentos</div><div class="stat-value stat-blue">${depts.length}</div><div class="stat-sub">no sistema</div></div>
-        <div class="stat-card"><div class="stat-label">Pendentes</div><div class="stat-value ${pendentes>0?'stat-red':'stat-green'}">${pendentes}</div><div class="stat-sub">aguardando aprovação</div></div>
-        <div class="stat-card"><div class="stat-label">Aprovadas</div><div class="stat-value stat-blue">${aprovadas}</div><div class="stat-sub">${recusadas} recusada(s)</div></div>
+      ${pendentes>0||criticos>0?`
+      <div class="attention-block">
+        <div class="attention-title">⚠ Requer atenção</div>
+        ${pendentes>0?`<div class="attention-item"><span style="font-size:12px">${pendentes} ausência${pendentes!==1?'s':''} aguardando aprovação</span><button class="btn btn-secondary btn-sm" onclick="state.view='aprovacoes';render()">Ver →</button></div>`:''}
+        ${criticos>0?`<div class="attention-item"><span style="font-size:12px">${criticos} prestador${criticos!==1?'es':''} com limite ≥90% utilizado</span><button class="btn btn-secondary btn-sm" onclick="state.view='equipe';render()">Ver equipe →</button></div>`:''}
+      </div>`:''}
+      <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+        <div class="stat-card"><div class="stat-label">Usuários ativos</div><div class="stat-value stat-green">${ativos}</div><div class="stat-sub">${inativos} inativo${inativos!==1?'s':''}</div></div>
+        <div class="stat-card"><div class="stat-label">Pendentes</div><div class="stat-value ${pendentes>0?'stat-amber':'stat-green'}">${pendentes}</div><div class="stat-sub">aguardando aprovação</div></div>
+        <div class="stat-card"><div class="stat-label">Aprovadas</div><div class="stat-value stat-blue">${aprovadas}</div><div class="stat-sub">${recusadas} recusada${recusadas!==1?'s':''}</div></div>
+        <div class="stat-card"><div class="stat-label">Limite crítico</div><div class="stat-value ${criticos>0?'stat-red':'stat-green'}">${criticos}</div><div class="stat-sub">prestador${criticos!==1?'es':''} ≥90% do limite</div></div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
-        <div class="stat-card"><div class="stat-label">Limite crítico</div><div class="stat-value ${criticos>0?'stat-red':'stat-green'}">${criticos}</div><div class="stat-sub">prestador(es) ≥90% do limite</div></div>
-        <div class="stat-card"><div class="stat-label">Próximas ausências</div><div class="stat-value stat-amber">${proximas30}</div><div class="stat-sub">a partir de hoje</div></div>
-        <div class="stat-card"><div class="stat-label">Total solicitações</div><div class="stat-value stat-blue">${state.solicitacoes.length}</div><div class="stat-sub">histórico completo</div></div>
-        <div class="stat-card"><div class="stat-label">Sem ausências registradas</div><div class="stat-value ${semFerias.length>0?'stat-amber':'stat-green'}">${semFerias.length}</div><div class="stat-sub">colaborador(es)</div></div>
-      </div>
-      ${alertas.length>0?alertas.map(a=>`<div class="alert alert-${a.tipo}" style="margin-bottom:8px">${a.tipo==='warn'?'⚠️':'ℹ️'} ${a.msg}</div>`).join(''):`<div class="alert alert-success" style="margin-bottom:16px">✅ Nenhum alerta crítico.</div>`}
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
-        <div class="card">
-          <div class="card-title" style="margin-bottom:14px">Saúde por departamento</div>
-          <div class="table-wrap" style="border:none"><table style="font-size:12px">
-            <thead><tr><th>Departamento</th><th>Pessoas</th><th>Pendentes</th><th>Críticos</th><th></th></tr></thead>
-            <tbody>${saudeDepts.map(d=>`<tr>
-              <td style="font-weight:500">${d.dept}</td><td>${d.total}</td>
-              <td>${d.pend>0?`<span class="badge badge-pending">${d.pend}</span>`:'—'}</td>
-              <td>${d.crit>0?`<span class="badge badge-critical">${d.crit}</span>`:'—'}</td>
-              <td>${d.crit>0||d.pend>2?'🔴':d.pend>0?'🟡':'🟢'}</td>
-            </tr>`).join('')}</tbody>
-          </table></div>
-        </div>
-        <div class="card">
-          <div class="card-title" style="margin-bottom:14px">Requer atenção</div>
-          ${(()=>{
-            const itens=[];
-            state.colaboradores.forEach(c=>{
-              const usr=getUserById(c.user_id);
-              if(!usr||usr.status==='inativo') return;
-              const s=getSaldo(c.user_id);
-              const pct=Math.round(s.usados/s.diasCiclo*100);
-              if(pct>=90) itens.push({usr,motivo:'Limite crítico ('+pct+'%)'});
-            });
-            if(itens.length===0) return `<div style="font-size:13px;color:var(--text3)">Nenhum item requer atenção.</div>`;
-            return itens.slice(0,6).map(i=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
-              <div class="flex gap-2"><div class="avatar" style="width:26px;height:26px;font-size:10px">${i.usr.avatar||i.usr.name.slice(0,2)}</div>
-              <div><div style="font-size:13px;font-weight:500">${i.usr.name.split(' ')[0]}</div>
-              <div style="font-size:11px;color:var(--text3)">${i.usr.departamento||i.usr.squad||'—'}</div></div></div>
-              <span class="badge badge-warn" style="font-size:10px">${i.motivo}</span>
-            </div>`).join('');
-          })()}
-        </div>
-      </div>
+
       <div class="card">
         <div class="flex-between mb-4">
           <div><div class="card-title">Ausências registradas</div>
@@ -1227,25 +1231,29 @@ function viewAprovacoes() {
       ${pendentes.map(s=>{
         const usr=getUserById(s.user_id);
         const saldo=getSaldo(s.user_id);
-        return `<div class="card">
-          <div class="flex-between">
-            <div class="flex gap-3"><div class="avatar">${usr?.avatar||'??'}</div>
-            <div><div style="font-size:14px;font-weight:600">${usr?.name||'—'}</div>
-            <div style="font-size:12px;color:var(--text3)">${usr?.departamento||usr?.squad||'—'} · ${usr?.funcao||'—'}</div></div></div>
-            <span class="badge badge-info">${s.tipo}</span>
+        const diasAteInicio = Math.round((new Date(s.data_inicio)-new Date())/86400000);
+        const urgente = diasAteInicio <= 5 && diasAteInicio >= 0;
+        return `<div class="card" style="${urgente?'border-left:3px solid #f59e0b;':''}">
+          <div class="flex-between" style="margin-bottom:10px">
+            <div class="flex gap-3">
+              <div class="avatar">${usr?.avatar||'??'}</div>
+              <div>
+                <div style="font-size:13px;font-weight:600">${usr?.name||'—'}</div>
+                <div style="font-size:11px;color:var(--text3)">${usr?.departamento||usr?.squad||'—'} · ${usr?.funcao||'—'}</div>
+              </div>
+            </div>
+            <div style="text-align:right">
+              ${getStatusBadge(s.status,s)}
+              ${urgente?`<div style="font-size:10px;color:#92400e;margin-top:3px">⚡ Início em ${diasAteInicio}d</div>`:''}
+            </div>
           </div>
-          <div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;padding:12px;background:var(--surface2);border-radius:var(--radius-sm)">
-            <div><div style="font-size:11px;color:var(--text3)">PERÍODO</div><div style="font-size:13px;font-weight:500">${formatDate(s.data_inicio)} → ${formatDate(s.data_fim)}</div></div>
-            <div><div style="font-size:11px;color:var(--text3)">DIAS</div><div style="font-size:13px;font-weight:500">${s.dias} dias corridos</div></div>
-            <div><div style="font-size:11px;color:var(--text3)">SALDO ATUAL</div><div style="font-size:13px;font-weight:500;color:${saldo.saldo<s.dias?'var(--danger)':'var(--accent)'}">${saldo.saldo}d disponível</div></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;background:var(--surface2);border-radius:6px;padding:10px;margin-bottom:12px">
+            <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px">Período</div><div style="font-size:12px;font-weight:500;margin-top:2px">${formatDate(s.data_inicio)} → ${formatDate(s.data_fim)}</div></div>
+            <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px">Duração</div><div style="font-size:12px;font-weight:500;margin-top:2px">${s.dias} dia${s.dias!==1?'s':''}</div></div>
+            <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px">Saldo após</div><div style="font-size:12px;font-weight:500;margin-top:2px;color:${(getSaldo(s.user_id).saldo-s.dias)<0?'var(--danger)':'var(--text)'}">${getSaldo(s.user_id).saldo-s.dias}d</div></div>
           </div>
-          ${s.obs?`<div style="margin-top:10px;font-size:13px;color:var(--text2)">💬 "${s.obs}"</div>`:''}
-          ${s.status==='Pendente'?`<div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
-            <button class="btn btn-secondary btn-sm" onclick="state.approvalModal=${s.id};state.approvalObs='';render()">✏️ Com observação</button>
-            <button class="btn btn-danger btn-sm" onclick="state.approvalModal=${s.id};state.approvalObs='';render()">✗ Recusar</button>
-            <button class="btn btn-primary btn-sm" onclick="aprovar(${s.id})">✓ Aprovar</button>
-          </div>`:''}
-        </div>`;
+          ${s.obs?`<div style="font-size:12px;color:var(--text2);margin-bottom:12px;padding:8px 10px;background:var(--surface2);border-radius:6px;border-left:2px solid var(--border)">${s.obs}</div>`:''}
+          <div class="flex gap-2" style="justify-content:flex-end">`;
       }).join('')}
     </div>`}
     ${state.approvalModal?`<div class="modal-overlay" onclick="if(event.target===this){state.approvalModal=null;render()}">
@@ -1810,8 +1818,8 @@ function viewModuloMOV() {
         <div class="stat-card"><div class="stat-label">Concluídas no mês</div><div class="stat-value stat-blue">${concMes}</div><div class="stat-sub">${mesAtual}</div></div>
       </div>
       ${atencao.length>0?`
-      <div class="card mb-6" style="border-left:3px solid #f59e0b;border-radius:0 var(--radius) var(--radius) 0">
-        <div class="card-title" style="margin-bottom:10px;color:var(--warn)">⚠ Requer atenção</div>
+      <div class="attention-block">
+        <div class="attention-title">⚠ Requer atenção — itens sem movimentação</div>
         <div style="display:flex;flex-direction:column;gap:8px">
           ${atencao.map(s=>{
             const dias=Math.round((new Date()-new Date(s.updatedAt))/86400000);
@@ -1879,6 +1887,7 @@ function viewModuloMOV() {
       let formFields = '';
       if (tipo === 'requisicao') {
         formFields = `
+        <span class="form-section-title">Localização da vaga</span>
         <div class="form-row">
           <div class="form-group"><label>Departamento *</label><select id="mov-departamento"><option value="">Selecione</option>${depts.map(d=>`<option>${d}</option>`).join('')}</select></div>
           <div class="form-group"><label>Área *</label><select id="mov-area"><option value="">Selecione</option>${areas.map(a=>`<option>${a}</option>`).join('')}</select></div>
@@ -1887,6 +1896,7 @@ function viewModuloMOV() {
           <div class="form-group"><label>Gestor solicitante</label><select id="mov-gestor"><option value="">Selecione</option>${gestores.map(g=>`<option value="${g.name}">${g.name}</option>`).join('')}</select></div>
           <div class="form-group"><label>Centro de custo</label><input type="text" id="mov-centroCusto" placeholder="Ex: CC-001"></div>
         </div>
+        <span class="form-section-title">Detalhes da vaga</span>
         <div class="form-row">
           <div class="form-group"><label>Cargo / Função</label><input type="text" id="mov-cargo" placeholder="Ex: Analista de Dados"></div>
           <div class="form-group"><label>Quantidade de vagas</label><input type="number" id="mov-qtdVagas" min="1" value="1"></div>
@@ -1899,40 +1909,45 @@ function viewModuloMOV() {
         <div class="form-group"><label>Observações</label><textarea id="mov-observacoes" placeholder="Informações adicionais..."></textarea></div>`;
       } else if (tipo === 'desligamento') {
         formFields = `
+        <span class="form-section-title">Identificação do colaborador</span>
         <div class="form-row">
           <div class="form-group"><label>Colaborador *</label><select id="mov-colaborador"><option value="">Selecione</option>${colaboradores.map(c=>`<option value="${c.name}">${c.name}</option>`).join('')}</select></div>
           <div class="form-group"><label>Matrícula</label><input type="text" id="mov-matricula" placeholder="Ex: 00123"></div>
         </div>
         <div class="form-row">
           <div class="form-group"><label>Empresa / Unidade</label><input type="text" id="mov-empresa" placeholder="Ex: WAP Ind."></div>
-          <div class="form-group"><label>Departamento *</label><select id="mov-departamento"><option value="">Selecione</option>${depts.map(d=>`<option>${d}</option>`).join('')}</select></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Área *</label><select id="mov-area"><option value="">Selecione</option>${areas.map(a=>`<option>${a}</option>`).join('')}</select></div>
-          <div class="form-group"><label>Gestor</label><select id="mov-gestor"><option value="">Selecione</option>${gestores.map(g=>`<option value="${g.name}">${g.name}</option>`).join('')}</select></div>
-        </div>
-        <div class="form-row">
           <div class="form-group"><label>Cargo</label><input type="text" id="mov-cargo" placeholder="Ex: Dev"></div>
+        </div>
+        <span class="form-section-title">Estrutura organizacional</span>
+        <div class="form-row">
+          <div class="form-group"><label>Departamento *</label><select id="mov-departamento"><option value="">Selecione</option>${depts.map(d=>`<option>${d}</option>`).join('')}</select></div>
+          <div class="form-group"><label>Área *</label><select id="mov-area"><option value="">Selecione</option>${areas.map(a=>`<option>${a}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Gestor responsável</label><select id="mov-gestor"><option value="">Selecione</option>${gestores.map(g=>`<option value="${g.name}">${g.name}</option>`).join('')}</select></div>
           <div class="form-group"><label>Centro de custo</label><input type="text" id="mov-centroCusto" placeholder="Ex: CC-001"></div>
         </div>
+        <span class="form-section-title">Detalhes do desligamento</span>
         <div class="form-row">
-          <div class="form-group"><label>Motivo do desligamento *</label><input type="text" id="mov-motivo" placeholder="Ex: Pedido do colaborador"></div>
+          <div class="form-group"><label>Motivo *</label><input type="text" id="mov-motivo" placeholder="Ex: Pedido do colaborador"></div>
           <div class="form-group"><label>Data prevista *</label><input type="date" id="mov-dataPrevista"></div>
         </div>
         <div class="form-group"><label>Aviso prévio</label><select id="mov-avisoPrevio"><option value="">Selecione</option><option>Com aviso prévio</option><option>Sem aviso prévio</option><option>Indenizado</option></select></div>
         <div class="form-group"><label>Observações</label><textarea id="mov-observacoes" placeholder="Informações adicionais..."></textarea></div>`;
       } else {
         formFields = `
+        <span class="form-section-title">Colaborador</span>
         <div class="form-row">
           <div class="form-group"><label>Colaborador *</label><select id="mov-colaborador"><option value="">Selecione</option>${colaboradores.map(c=>`<option value="${c.name}">${c.name}</option>`).join('')}</select></div>
           <div class="form-group"><label>Matrícula</label><input type="text" id="mov-matricula" placeholder="Ex: 00123"></div>
         </div>
+        <span class="form-section-title">Situação atual → Destino</span>
         <div class="form-row">
           <div class="form-group"><label>Departamento atual *</label><select id="mov-departamento"><option value="">Selecione</option>${depts.map(d=>`<option>${d}</option>`).join('')}</select></div>
-          <div class="form-group"><label>Área atual *</label><select id="mov-area"><option value="">Selecione</option>${areas.map(a=>`<option>${a}</option>`).join('')}</select></div>
+          <div class="form-group"><label>Departamento destino</label><select id="mov-departamentoDestino"><option value="">Selecione</option>${depts.map(d=>`<option>${d}</option>`).join('')}</select></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Departamento destino</label><select id="mov-departamentoDestino"><option value="">Selecione</option>${depts.map(d=>`<option>${d}</option>`).join('')}</select></div>
+          <div class="form-group"><label>Área atual *</label><select id="mov-area"><option value="">Selecione</option>${areas.map(a=>`<option>${a}</option>`).join('')}</select></div>
           <div class="form-group"><label>Área destino</label><select id="mov-areaDestino"><option value="">Selecione</option>${areas.map(a=>`<option>${a}</option>`).join('')}</select></div>
         </div>
         <div class="form-row">
@@ -1943,14 +1958,16 @@ function viewModuloMOV() {
           <div class="form-group"><label>Cargo atual</label><input type="text" id="mov-cargoAtual" placeholder="Ex: Dev Jr"></div>
           <div class="form-group"><label>Cargo proposto</label><input type="text" id="mov-cargoDestino" placeholder="Ex: Dev Pleno"></div>
         </div>
+        <span class="form-section-title">Remuneração</span>
         <div class="form-row">
           <div class="form-group"><label>Salário atual</label><input type="text" id="mov-salarioAtual" placeholder="Ex: 5000"></div>
           <div class="form-group"><label>Salário proposto</label><input type="text" id="mov-salarioDestino" placeholder="Ex: 6000" oninput="const a=parseFloat(document.getElementById('mov-salarioAtual')?.value)||0;const b=parseFloat(this.value)||0;const el=document.getElementById('mov-pct');if(el&&a>0)el.value=((b-a)/a*100).toFixed(1)"></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>% Reajuste</label><input type="number" id="mov-pct" placeholder="Calculado automaticamente" step="0.1"></div>
+          <div class="form-group"><label>% Reajuste</label><input type="number" id="mov-pct" placeholder="Calculado automaticamente" step="0.1" style="background:var(--surface2)"></div>
           <div class="form-group"><label>Data prevista *</label><input type="date" id="mov-dataPrevista"></div>
         </div>
+        <span class="form-section-title">Justificativa</span>
         <div class="form-group"><label>Motivo *</label><input type="text" id="mov-motivo" placeholder="Ex: Promoção por desempenho"></div>
         <div class="form-group"><label>Observações</label><textarea id="mov-observacoes" placeholder="Informações adicionais..."></textarea></div>`;
       }
