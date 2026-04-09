@@ -1,15 +1,4 @@
-    ${pending>0||criticos>0?`
-    <div class="attention-block">
-      <div class="attention-title">⚠ Requer atenção</div>
-      ${pending>0?`<div class="attention-item"><span style="font-size:12px">${pending} ausência${pending!==1?'s':''} aguardando sua aprovação</span><button class="btn btn-secondary btn-sm" onclick="state.view='aprovacoes';render()">Aprovar →</button></div>`:''}
-      ${criticos>0?`<div class="attention-item"><span style="font-size:12px">${criticos} prestador${criticos!==1?'es':''} com limite ≥90% do ciclo</span><button class="btn btn-secondary btn-sm" onclick="state.view='equipe';render()">Ver equipe →</button></div>`:''}
-    </div>`:''}
-    <div class="stat-grid">
-      <div class="stat-card"><div class="stat-label">Equipe</div><div class="stat-value stat-blue">${equipe.length+1}</div><div class="stat-sub">colaboradores no departamento</div></div>
-      <div class="stat-card"><div class="stat-label">Pendentes</div><div class="stat-value ${pending>0?'stat-amber':'stat-green'}">${pending}</div><div class="stat-sub">aguardando sua decisão</div></div>
-      <div class="stat-card"><div class="stat-label">Próximas ausências</div><div class="stat-value stat-blue">${proximas.length}</div><div class="stat-sub">agendadas na equipe</div></div>
-      <div class="stat-card"><div class="stat-label">Limite crítico</div><div class="stat-value ${criticos>0?'stat-red':'stat-green'}">${criticos}</div><div class="stat-sub">prestadores ≥90% do limite</div></div>
-    </div><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -220,6 +209,9 @@
     .stat-grid{grid-template-columns:1fr}
     .page-title{font-size:16px}
     .card{padding:14px}
+  }
+  @media(max-width:520px){
+    .stat-grid{grid-template-columns:1fr}
   }
   @media(max-width:480px){
     .stat-grid{grid-template-columns:1fr}
@@ -705,7 +697,7 @@ function viewLogin() {
           ${state.loginLoading ? '<span class="dot-pulse"></span> Entrando...' : 'Entrar'}
         </button>
       </div>
-      <div class="login-footer">© ${new Date().getFullYear()} GestAus · Gestão de Disponibilidade PJ · Uso interno</div>
+      <div class="login-footer">© ${new Date().getFullYear()} GestAus · Portal People · Uso interno</div>
       <div style="margin-top:10px;font-size:10px;color:var(--text3);text-align:center;max-width:380px;line-height:1.5;opacity:0.8">
         Este sistema é utilizado para gestão de disponibilidade de prestadores de serviço (PJ), não caracterizando vínculo empregatício.
       </div>
@@ -1013,11 +1005,17 @@ function viewDashboard() {
       <div class="page-desc">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${meuDept}</div></div>
       <button class="btn btn-primary" onclick="state.view='nova';render()">+ Nova solicitação</button>
     </div>
+    \${pending>0||criticos>0?\`
+    <div class="attention-block">
+      <div class="attention-title">⚠ Requer atenção</div>
+      \${pending>0?\`<div class="attention-item"><span style="font-size:12px">\${pending} ausência\${pending!==1?'s':''} aguardando sua aprovação</span><button class="btn btn-secondary btn-sm" onclick="state.view='aprovacoes';render()">Aprovar →</button></div>\`:''}
+      \${criticos>0?\`<div class="attention-item"><span style="font-size:12px">\${criticos} prestador\${criticos!==1?'es':''} com limite ≥90% do ciclo</span><button class="btn btn-secondary btn-sm" onclick="state.view='equipe';render()">Ver equipe →</button></div>\`:''}
+    </div>\`:''}
     <div class="stat-grid">
-      <div class="stat-card"><div class="stat-label">Equipe no departamento</div><div class="stat-value stat-blue">${equipe.length+1}</div><div class="stat-sub">incluindo você</div></div>
-      <div class="stat-card"><div class="stat-label">Pendentes de aprovação</div><div class="stat-value ${pending>0?'stat-red':'stat-green'}">${pending}</div><div class="stat-sub">aguardando sua decisão</div></div>
-      <div class="stat-card"><div class="stat-label">Próximas ausências</div><div class="stat-value stat-amber">${proximas.length}</div><div class="stat-sub">agendadas na equipe</div></div>
-      <div class="stat-card"><div class="stat-label">Limite crítico</div><div class="stat-value ${criticos>0?'stat-red':'stat-green'}">${criticos}</div><div class="stat-sub">prestador(es) ≥90% do limite</div></div>
+      <div class="stat-card"><div class="stat-label">Equipe</div><div class="stat-value stat-blue">\${equipe.length+1}</div><div class="stat-sub">colaboradores no departamento</div></div>
+      <div class="stat-card"><div class="stat-label">Pendentes</div><div class="stat-value \${pending>0?'stat-amber':'stat-green'}">\${pending}</div><div class="stat-sub">aguardando sua decisão</div></div>
+      <div class="stat-card"><div class="stat-label">Próximas ausências</div><div class="stat-value stat-blue">\${proximas.length}</div><div class="stat-sub">agendadas na equipe</div></div>
+      <div class="stat-card"><div class="stat-label">Limite crítico</div><div class="stat-value \${criticos>0?'stat-red':'stat-green'}">\${criticos}</div><div class="stat-sub">prestadores ≥90% do limite</div></div>
     </div>
     ${pending>0?`<div class="alert alert-warn" style="display:flex;align-items:center;justify-content:space-between"><span>⚠️ <strong>${pending}</strong> ausência(s) aguardando aprovação.</span><button class="btn btn-secondary btn-sm" onclick="state.view='aprovacoes';render()">Revisar agora →</button></div>`:`<div class="alert alert-success">✅ Nenhuma ausência registrada pendente de aprovação.</div>`}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
@@ -1549,7 +1547,7 @@ function viewPortalPeople() {
   const isAdmin = u.role==='admin'||u.role==='people';
 
   return `<div style="min-height:100vh;background:var(--bg);padding:clamp(20px,5vw,40px) clamp(16px,4vw,32px)">
-    <div style="max-width:860px;margin:0 auto;width:100%;box-sizing:border-box">
+    <div style="max-width:860px;margin:0 auto;width:100%;box-sizing:border-box;padding:0 4px">
 
       <!-- Header -->
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
