@@ -244,6 +244,30 @@
   /* ── App layout fix ── */
   #app{display:flex;min-height:100vh;overflow-x:hidden}
   .app-shell{display:flex;width:100%;min-height:100vh;overflow-x:hidden}
+  /* ── Lumi Assistente ── */
+  .lumi-wrap{background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:20px 24px 18px;margin-bottom:40px;box-shadow:var(--shadow)}
+  .lumi-header{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .lumi-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1a5c3a 0%,#2d7a52 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px}
+  .lumi-name{font-size:13px;font-weight:600;color:var(--text)}
+  .lumi-badge{font-size:9px;font-weight:600;background:var(--accent-light);color:var(--accent);padding:2px 6px;border-radius:8px;letter-spacing:.3px;text-transform:uppercase;margin-left:4px}
+  .lumi-sub{font-size:12px;color:var(--text3);margin-bottom:14px;padding-left:42px;line-height:1.5}
+  .lumi-input-row{display:flex;gap:8px;align-items:center}
+  .lumi-input{flex:1;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:inherit;font-size:13px;color:var(--text);background:var(--bg);outline:none;transition:border-color .15s}
+  .lumi-input:focus{border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px rgba(26,92,58,.07)}
+  .lumi-send{width:38px;height:38px;border-radius:9px;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s}
+  .lumi-send:hover{background:var(--accent-mid)}.lumi-send:disabled{opacity:.45;cursor:not-allowed}
+  .lumi-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+  .lumi-chip{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface);font-size:11.5px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .13s;white-space:nowrap}
+  .lumi-chip:hover{background:var(--accent-light);border-color:var(--accent);color:var(--accent)}
+  .lumi-response{margin-top:14px;padding:12px 16px;background:linear-gradient(135deg,#f0f9f4,#eef7f1);border:1px solid #c6e6d3;border-radius:10px;font-size:13px;color:var(--text);line-height:1.6;display:none}
+  .lumi-response.visible{display:block;animation:lumi-in .18s ease}
+  .lumi-response-head{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.4px}
+  .lumi-loading{display:flex;gap:4px;align-items:center;padding:4px 0}
+  .lumi-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:lumi-pulse 1.2s ease-in-out infinite}
+  .lumi-dot:nth-child(2){animation-delay:.2s}.lumi-dot:nth-child(3){animation-delay:.4s}
+  @keyframes lumi-pulse{0%,100%{opacity:.25;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+  @keyframes lumi-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+  @media(max-width:560px){.lumi-wrap{padding:16px}.lumi-sub{padding-left:0}.lumi-chips{gap:6px}}
 </style>
 </head>
 <body>
@@ -690,6 +714,189 @@ async function askAI(prompt) {
 // ══════════════════════════════════════════
 const LOGO_LG = `<svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="56" height="56" rx="14" fill="#1a5c3a"/><rect x="13" y="16" width="30" height="26" rx="4" fill="none" stroke="white" stroke-width="2"/><line x1="13" y1="23" x2="43" y2="23" stroke="white" stroke-width="2"/><line x1="20" y1="13" x2="20" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><line x1="36" y1="13" x2="36" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><polyline points="21,33 26,38 35,29" stroke="#7ee8a2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
 const LOGO_SM = `<svg width="32" height="32" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="56" height="56" rx="14" fill="#1a5c3a"/><rect x="13" y="16" width="30" height="26" rx="4" fill="none" stroke="white" stroke-width="2"/><line x1="13" y1="23" x2="43" y2="23" stroke="white" stroke-width="2"/><line x1="20" y1="13" x2="20" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><line x1="36" y1="13" x2="36" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><polyline points="21,33 26,38 35,29" stroke="#7ee8a2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
+
+// ══════════════════════════════════════════
+// LUMI — ASSISTENTE GESTAUS
+// ══════════════════════════════════════════
+
+// Palavras bloqueadas por segurança — dados sensíveis
+const LUMI_BLOCKED = [
+  'salário','salario','remuneração','remuneracao','remuner',
+  'reajuste','aumento salarial','quanto ganha','quanto recebe',
+  'folha de pagamento','folha pagamento','pagamento','holerite',
+  'cpf','rg','documento','dados pessoais','endereço','endereco',
+  'telefone pessoal','cel ','celular pessoal','senha','password',
+  'financeiro pessoal','conta bancária','conta bancaria','banco',
+  'pix','cnpj individual','dado confidencial','confidencial',
+  'dado sensível','dado sensivel',
+];
+
+function lumiCheckBlocked(text) {
+  const lower = text.toLowerCase();
+  return LUMI_BLOCKED.some(w => lower.includes(w));
+}
+
+function lumiGetContext() {
+  const u = state.currentUser;
+  if (!u) return null;
+  const sols = state.solicitacoes || [];
+  const pendentes = sols.filter(s => s.status === 'Pendente').length;
+  const aprovadas = sols.filter(s => s.status === 'Aprovada').length;
+  const hoje = new Date().toISOString().slice(0,10);
+  const proxima7 = sols.filter(s =>
+    ['Aprovada','Pendente'].includes(s.status) &&
+    s.data_inicio >= hoje &&
+    s.data_inicio <= new Date(Date.now()+7*864e5).toISOString().slice(0,10)
+  ).length;
+  const totalUsers = state.users?.filter(x => x.status === 'ativo' && x.role !== 'admin').length || 0;
+  const movPendentes = state.movSolicitacoes?.filter(s => ['Enviada','Em análise'].includes(s.status)).length || 0;
+  return { u, pendentes, aprovadas, proxima7, totalUsers, movPendentes };
+}
+
+function lumiNavigate(modulo, view) {
+  if (modulo) { state.moduloAtivo = modulo; }
+  if (view)   { state.view = view; }
+  render();
+}
+
+function lumiRespond(input) {
+  const txt = input.trim().toLowerCase();
+  const ctx = lumiGetContext();
+  if (!ctx) return { msg: 'Não consegui carregar o contexto. Tente novamente.', nav: null };
+
+  // ── BLOQUEIO DE SEGURANÇA ──────────────────────────────────────
+  if (lumiCheckBlocked(txt)) {
+    return {
+      msg: '🔒 Não posso exibir informações sensíveis por este canal. Esse tipo de dado é restrito e não está disponível aqui.',
+      nav: null, blocked: true
+    };
+  }
+
+  // ── PENDÊNCIAS ─────────────────────────────────────────────────
+  if (txt.match(/pend[eê]ncia|pendente|aprovar|aprovação|aguardando/)) {
+    if (ctx.pendentes === 0) return { msg: '✅ Não há ausências pendentes de aprovação no momento.', nav: null };
+    return {
+      msg: `⏳ Há ${ctx.pendentes} ausência${ctx.pendentes!==1?'s':''} pendente${ctx.pendentes!==1?'s':''} de aprovação. Posso te levar diretamente para a tela de aprovações.`,
+      nav: () => lumiNavigate('ausencias', 'aprovacoes'), navLabel: 'Ir para aprovações'
+    };
+  }
+
+  // ── AUSÊNCIAS DA SEMANA ────────────────────────────────────────
+  if (txt.match(/aus[eê]ncia|semana|pr[oó]xima|agendad/)) {
+    return {
+      msg: `📅 Há ${ctx.proxima7} ausência${ctx.proxima7!==1?'s':''} agendada${ctx.proxima7!==1?'s':''} para os próximos 7 dias. Acesse o calendário para ver os detalhes.`,
+      nav: () => lumiNavigate('ausencias', 'calendario'), navLabel: 'Abrir calendário'
+    };
+  }
+
+  // ── CALENDÁRIO ─────────────────────────────────────────────────
+  if (txt.match(/calend[aá]rio|agenda/)) {
+    return {
+      msg: '📅 Abrindo o calendário de ausências da equipe.',
+      nav: () => lumiNavigate('ausencias', 'calendario'), navLabel: 'Abrir calendário', autoNav: true
+    };
+  }
+
+  // ── MOV ────────────────────────────────────────────────────────
+  if (txt.match(/mov\b|movimenta|requisi[çc][aã]o|desligamento|altera[çc][aã]o de cargo/)) {
+    if (ctx.movPendentes > 0) {
+      return {
+        msg: `📋 Há ${ctx.movPendentes} solicitação${ctx.movPendentes!==1?'ões':''} de MOV em aberto. Quer acessar o módulo?`,
+        nav: () => lumiNavigate('mov', 'dashboard'), navLabel: 'Abrir MOV'
+      };
+    }
+    return {
+      msg: '📋 Módulo MOV: gerencie requisições, desligamentos e alterações de cargo. Posso te levar lá agora.',
+      nav: () => lumiNavigate('mov', 'dashboard'), navLabel: 'Abrir MOV', autoNav: true
+    };
+  }
+
+  // ── CRIAR SOLICITAÇÃO ──────────────────────────────────────────
+  if (txt.match(/criar|nova solicita[çc][aã]o|nova aus[eê]ncia|solicitar/)) {
+    return {
+      msg: '➕ Vou te levar para a tela de nova solicitação de ausência.',
+      nav: () => lumiNavigate('ausencias', 'nova'), navLabel: 'Nova solicitação', autoNav: true
+    };
+  }
+
+  // ── EQUIPE ─────────────────────────────────────────────────────
+  if (txt.match(/equipe|time|colaborador|membro/)) {
+    return {
+      msg: `👥 Sua equipe tem ${ctx.totalUsers} colaborador${ctx.totalUsers!==1?'es':''} ativo${ctx.totalUsers!==1?'s':''}. Acesse a visão de equipe para detalhes.`,
+      nav: () => lumiNavigate('ausencias', 'equipe'), navLabel: 'Ver equipe'
+    };
+  }
+
+  // ── DASHBOARD ──────────────────────────────────────────────────
+  if (txt.match(/dashboard|painel|resumo|overview|início|inicio|home/)) {
+    return {
+      msg: '📊 Abrindo o dashboard de ausências.',
+      nav: () => lumiNavigate('ausencias', 'dashboard'), navLabel: 'Ir para dashboard', autoNav: true
+    };
+  }
+
+  // ── AJUDA / O QUE VOCÊ FAZ ─────────────────────────────────────
+  if (txt.match(/ajuda|help|o que (você|voce) (faz|pode)|como usar|o que é lumi|quem é lumi/)) {
+    return {
+      msg: `👋 Sou a Lumi, assistente do GestAus. Posso te ajudar a:\n• Verificar pendências e ausências\n• Navegar entre módulos (Ausências, MOV, Calendário)\n• Consultar status da equipe\n• Iniciar ações rapidamente\n\nO que você precisa?`,
+      nav: null
+    };
+  }
+
+  // ── PORTAL ─────────────────────────────────────────────────────
+  if (txt.match(/portal|módulos|modulos|voltar/)) {
+    return {
+      msg: '🏠 Voltando para o Portal People.',
+      nav: () => { state.moduloAtivo = null; render(); }, navLabel: 'Ir para o Portal', autoNav: true
+    };
+  }
+
+  // ── FALLBACK ───────────────────────────────────────────────────
+  return {
+    msg: `Não entendi completamente, mas posso te ajudar com: pendências, ausências da semana, calendário, equipe, MOV ou criar uma nova solicitação. Tente uma dessas opções ou use as sugestões abaixo.`,
+    nav: null
+  };
+}
+
+function lumiSend(inputId, responseId, loadingId) {
+  const inputEl = document.getElementById(inputId);
+  const respEl  = document.getElementById(responseId);
+  const loadEl  = document.getElementById(loadingId);
+  const sendBtn = document.getElementById('lumi-send-btn');
+  if (!inputEl || !respEl) return;
+  const val = inputEl.value.trim();
+  if (!val) return;
+
+  // Loading
+  sendBtn && (sendBtn.disabled = true);
+  loadEl && (loadEl.style.display = 'flex');
+  respEl.style.display = 'none';
+  respEl.classList.remove('error');
+
+  setTimeout(() => {
+    const result = lumiRespond(val);
+    loadEl && (loadEl.style.display = 'none');
+    sendBtn && (sendBtn.disabled = false);
+
+    // Monta resposta
+    let html = result.msg.replace(/\n/g, '<br>');
+    if (result.nav && !result.autoNav) {
+      html += `<br><br><button class="btn btn-primary btn-sm" style="margin-top:4px" onclick="(${result.nav.toString()})()">${result.navLabel} →</button>`;
+    }
+    respEl.innerHTML = html;
+    respEl.className = 'lumi-response visible' + (result.blocked ? ' error' : '');
+    respEl.style.display = 'block';
+
+    if (result.autoNav && result.nav) {
+      setTimeout(() => { (result.nav)(); }, 700);
+    }
+  }, 320);
+}
+
+function lumiChip(text) {
+  const inputEl = document.getElementById('lumi-input');
+  if (inputEl) { inputEl.value = text; lumiSend('lumi-input','lumi-response','lumi-loading'); }
+}
 
 // ══════════════════════════════════════════
 // VIEWS
@@ -1586,6 +1793,39 @@ function viewPortalPeople() {
         </div>
       </div>
       <div class="portal-date">${hoje}</div>
+
+      <!-- Lumi Assistente -->
+      <div class="lumi-wrap" id="lumi-block">
+        <div class="lumi-header">
+          <div class="lumi-avatar">✦</div>
+          <div>
+            <span class="lumi-name">Lumi</span>
+            <span class="lumi-badge">Assistente GestAus</span>
+          </div>
+        </div>
+        <div class="lumi-sub">Posso te ajudar a encontrar informações, navegar pelos módulos ou iniciar ações.</div>
+        <div class="lumi-input-row">
+          <input id="lumi-input" class="lumi-input" type="text" placeholder="Como posso ajudar?"
+            onkeydown="if(event.key==='Enter')lumiSend('lumi-input','lumi-response','lumi-loading')"
+            oninput="document.getElementById('lumi-send-btn').disabled=!this.value.trim()">
+          <button id="lumi-send-btn" class="lumi-send" onclick="lumiSend('lumi-input','lumi-response','lumi-loading')" disabled title="Enviar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+        <div class="lumi-chips">
+          <span class="lumi-chip" onclick="lumiChip('Ver pendências')">⏳ Ver pendências</span>
+          <span class="lumi-chip" onclick="lumiChip('Ver ausências da semana')">📅 Ausências da semana</span>
+          <span class="lumi-chip" onclick="lumiChip('Criar solicitação MOV')">➕ Nova solicitação MOV</span>
+          <span class="lumi-chip" onclick="lumiChip('Abrir calendário')">🗓 Calendário</span>
+          <span class="lumi-chip" onclick="lumiChip('Ir para aprovações')">✅ Aprovações</span>
+        </div>
+        <div class="lumi-response" id="lumi-response" style="display:none">
+          <div class="lumi-response-head">✦ Lumi</div>
+        </div>
+        <div id="lumi-loading" class="lumi-loading" style="display:none;margin-top:12px">
+          <div class="lumi-dot"></div><div class="lumi-dot"></div><div class="lumi-dot"></div>
+        </div>
+      </div>
 
       <!-- Grupo: Gestão de Pessoas -->
       <div class="portal-section">
