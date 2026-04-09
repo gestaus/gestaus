@@ -808,103 +808,411 @@ function lumiNavigate(modulo, view) {
 }
 
 function lumiRespond(input) {
-  const txt = input.trim().toLowerCase();
+  const txt = input.trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // remove acentos para match
+  const raw = input.trim().toLowerCase(); // original com acentos
   const ctx = lumiGetContext();
   if (!ctx) return { msg: 'Não consegui carregar o contexto. Tente novamente.', nav: null };
+  const u = ctx.u;
 
-  // ── BLOQUEIO DE SEGURANÇA ──────────────────────────────────────
-  if (lumiCheckBlocked(txt)) {
+  // ════════════════════════════════════════════════════
+  // BLOQUEIO DE SEGURANÇA — dados sensíveis
+  // ════════════════════════════════════════════════════
+  if (lumiCheckBlocked(raw)) {
     return {
-      msg: '🔒 Não posso exibir informações sensíveis por este canal. Esse tipo de dado é restrito e não está disponível aqui.',
+      msg: '🔒 Não posso exibir informações sensíveis por este canal.',
       nav: null, blocked: true
     };
   }
 
-  // ── PENDÊNCIAS ─────────────────────────────────────────────────
-  if (txt.match(/pend[eê]ncia|pendente|aprovar|aprovação|aguardando/)) {
-    if (ctx.pendentes === 0) return { msg: '✅ Não há ausências pendentes de aprovação no momento.', nav: null };
-    return {
-      msg: `⏳ Há ${ctx.pendentes} ausência${ctx.pendentes!==1?'s':''} pendente${ctx.pendentes!==1?'s':''} de aprovação. Posso te levar diretamente para a tela de aprovações.`,
-      nav: () => lumiNavigate('ausencias', 'aprovacoes'), navLabel: 'Ir para aprovações'
-    };
-  }
+  // helper de permissão
+  const is = (...roles) => roles.includes(u.role);
 
-  // ── AUSÊNCIAS DA SEMANA ────────────────────────────────────────
-  if (txt.match(/aus[eê]ncia|semana|pr[oó]xima|agendad/)) {
-    return {
-      msg: `📅 Há ${ctx.proxima7} ausência${ctx.proxima7!==1?'s':''} agendada${ctx.proxima7!==1?'s':''} para os próximos 7 dias. Acesse o calendário para ver os detalhes.`,
-      nav: () => lumiNavigate('ausencias', 'calendario'), navLabel: 'Abrir calendário'
-    };
-  }
+  // ════════════════════════════════════════════════════
+  // BASE DE INTENÇÕES
+  // ════════════════════════════════════════════════════
 
-  // ── CALENDÁRIO ─────────────────────────────────────────────────
-  if (txt.match(/calend[aá]rio|agenda/)) {
-    return {
-      msg: '📅 Abrindo o calendário de ausências da equipe.',
-      nav: () => lumiNavigate('ausencias', 'calendario'), navLabel: 'Abrir calendário', autoNav: true
-    };
-  }
+  const intencoes = [
 
-  // ── MOV ────────────────────────────────────────────────────────
-  if (txt.match(/mov\b|movimenta|requisi[çc][aã]o|desligamento|altera[çc][aã]o de cargo/)) {
-    if (ctx.movPendentes > 0) {
-      return {
-        msg: `📋 Há ${ctx.movPendentes} solicitação${ctx.movPendentes!==1?'ões':''} de MOV em aberto. Quer acessar o módulo?`,
-        nav: () => lumiNavigate('mov', 'dashboard'), navLabel: 'Abrir MOV'
-      };
+    // ── PORTAL ────────────────────────────────────────
+    {
+      id: 'portal_home',
+      tags: /portal|pagina inicial|pagina home|tela inicial|inicio|home|modulos|voltar ao portal/,
+      exec() {
+        return { msg: '🏠 Indo para o Portal People.', autoNav: true,
+          nav: () => { state.moduloAtivo = null; render(); } };
+      }
+    },
+
+    // ── AJUDA / SOBRE A LUMI ───────────────────────────
+    {
+      id: 'ajuda_lumi',
+      tags: /ajuda|help|o que (voce|lumi) (faz|pode|e)|como usar|quem e lumi|me ajuda/,
+      exec() {
+        const acoes = [
+          '• Navegar entre módulos',
+          '• Ver pendências e ausências',
+          '• Abrir calendário e aprovações',
+          '• Iniciar solicitações (Ausência, MOV)',
+          '• Consultar status da equipe',
+          '• Responder dúvidas sobre o sistema',
+        ];
+        return { msg: `Sou a <strong>Lumi</strong>, assistente do GestAus. Aqui está o que posso fazer:<br><br>${acoes.join('<br>')}`, nav: null };
+      }
+    },
+
+    // ── DASHBOARD ─────────────────────────────────────
+    {
+      id: 'dashboard',
+      tags: /dashboard|painel|resumo|overview|visao geral/,
+      exec() {
+        return { msg: '📊 Abrindo o dashboard.', autoNav: true,
+          nav: () => lumiNavigate('ausencias', 'dashboard') };
+      }
+    },
+
+    // ── PENDÊNCIAS ────────────────────────────────────
+    {
+      id: 'pendencias',
+      tags: /pend[eê]?ncia|pendente|aguardando aprova|quantas?.*(solicita|ausencia)|solicita.*pendente/,
+      exec() {
+        if (!is('gestor','admin','people'))
+          return { msg: `Você tem ${ctx.pendentes} solicitação${ctx.pendentes!==1?'ões':''} pendente${ctx.pendentes!==1?'s':''}.`, nav: null };
+        if (ctx.pendentes === 0)
+          return { msg: '✅ Nenhuma ausência pendente de aprovação no momento.', nav: null };
+        return {
+          msg: `⏳ Há <strong>${ctx.pendentes}</strong> ausência${ctx.pendentes!==1?'s':''} aguardando aprovação.`,
+          nav: () => lumiNavigate('ausencias', 'aprovacoes'), navLabel: 'Ver aprovações'
+        };
+      }
+    },
+
+    // ── APROVAÇÕES ────────────────────────────────────
+    {
+      id: 'aprovacoes',
+      tags: /aprova[cç][aã]o|aprovar|tela de aprova|gestao de ausencia/,
+      exec() {
+        if (!is('gestor','admin','people'))
+          return { msg: '⚠️ Você não tem acesso à tela de aprovações.', nav: null, blocked: true };
+        return {
+          msg: `Tela de aprovações — ${ctx.pendentes} solicitação${ctx.pendentes!==1?'ões':''} pendente${ctx.pendentes!==1?'s':''}.`,
+          nav: () => lumiNavigate('ausencias', 'aprovacoes'), navLabel: 'Abrir aprovações', autoNav: true
+        };
+      }
+    },
+
+    // ── MINHA SITUAÇÃO / SALDO ────────────────────────
+    {
+      id: 'meu_saldo',
+      tags: /meu saldo|quantos dias|meu limite|saldo disponivel|dias? disponiveis?|minha situacao/,
+      exec() {
+        const s = typeof getSaldo === 'function' ? getSaldo(u.id) : null;
+        if (!s) return { msg: 'Não consegui carregar seu saldo agora.', nav: null };
+        return { msg: `Seu saldo atual: <strong>${s.saldo} dias disponíveis</strong> de ${s.diasCiclo} no ciclo (${s.usados} usados).`, nav: null };
+      }
+    },
+
+    // ── NOVA SOLICITAÇÃO DE AUSÊNCIA ──────────────────
+    {
+      id: 'nova_ausencia',
+      tags: /nova (solicita|ausencia)|solicitar (ausencia|ferias|folga|licenca)|criar (solicita|ausencia)|abrir solicita/,
+      exec() {
+        return { msg: '➕ Abrindo o formulário de nova solicitação.', autoNav: true,
+          nav: () => lumiNavigate('ausencias', 'nova') };
+      }
+    },
+
+    // ── MINHAS AUSÊNCIAS ──────────────────────────────
+    {
+      id: 'minhas_ausencias',
+      tags: /minha(s)? aus[eê]?ncia|meu historico|minhas solicita|ver minhas/,
+      exec() {
+        const total = state.solicitacoes?.filter(s => s.user_id === u.id).length || 0;
+        return {
+          msg: `Você tem <strong>${total}</strong> ausência${total!==1?'s':''} registrada${total!==1?'s':''}.`,
+          nav: () => lumiNavigate('ausencias', 'minhas'), navLabel: 'Ver minhas ausências'
+        };
+      }
+    },
+
+    // ── AUSÊNCIAS DA SEMANA / PRÓXIMAS ────────────────
+    {
+      id: 'proximas_ausencias',
+      tags: /ausencia.*(semana|proxima|hoje|amanha|essa semana)|proxima.*(ausencia|solicita)|agendada/,
+      exec() {
+        return {
+          msg: `📅 Há <strong>${ctx.proxima7}</strong> ausência${ctx.proxima7!==1?'s':''} agendada${ctx.proxima7!==1?'s':''} para os próximos 7 dias.`,
+          nav: () => lumiNavigate('ausencias', 'calendario'), navLabel: 'Ver calendário'
+        };
+      }
+    },
+
+    // ── CALENDÁRIO ────────────────────────────────────
+    {
+      id: 'calendario',
+      tags: /calend[aá]?rio|agenda.*equipe|ver.*agenda/,
+      exec() {
+        return { msg: '📅 Abrindo o calendário da equipe.', autoNav: true,
+          nav: () => lumiNavigate('ausencias', 'calendario') };
+      }
+    },
+
+    // ── EQUIPE ────────────────────────────────────────
+    {
+      id: 'equipe',
+      tags: /equipe|time|meus colaboradores|quem e da (minha |)equipe|ver equipe|membro/,
+      exec() {
+        return {
+          msg: `👥 Sua equipe conta com <strong>${ctx.totalUsers}</strong> colaborador${ctx.totalUsers!==1?'es':''} ativo${ctx.totalUsers!==1?'s':''}.`,
+          nav: () => lumiNavigate('ausencias', 'equipe'), navLabel: 'Ver equipe'
+        };
+      }
+    },
+
+    // ── CONFIRMAÇÃO PEOPLE ────────────────────────────
+    {
+      id: 'confirmacao_people',
+      tags: /ciencia|confirma[cç][aã]o.*(people|rh)|people.*(confirma|cien)|tela.*(people|rh)/,
+      exec() {
+        if (!is('people','admin'))
+          return { msg: '⚠️ Você não tem acesso à confirmação do People.', nav: null, blocked: true };
+        return { msg: 'Abrindo a confirmação do People.', autoNav: true,
+          nav: () => lumiNavigate('ausencias', 'people') };
+      }
+    },
+
+    // ── ASSISTENTE IA ─────────────────────────────────
+    {
+      id: 'assistente_ia',
+      tags: /assistente ia|ia|inteligencia artificial|claude|perguntar para ia/,
+      exec() {
+        return { msg: '🤖 Abrindo o Assistente IA do GestAus.', autoNav: true,
+          nav: () => lumiNavigate('ausencias', 'assistente') };
+      }
+    },
+
+    // ── MOV — GERAL ───────────────────────────────────
+    {
+      id: 'mov_geral',
+      tags: /\bmov\b|modulo mov|movimenta[cç][aã]o de pessoas|movimenta[cç][aã]o/,
+      exec() {
+        if (!is('people','admin','gestor'))
+          return { msg: '⚠️ Você não tem acesso ao módulo MOV.', nav: null, blocked: true };
+        if (ctx.movPendentes > 0)
+          return {
+            msg: `📋 Módulo MOV — <strong>${ctx.movPendentes}</strong> solicitaç${ctx.movPendentes!==1?'ões':'ão'} em aberto.`,
+            nav: () => lumiNavigate('mov', 'dashboard'), navLabel: 'Abrir MOV'
+          };
+        return { msg: '📋 Abrindo o módulo de Movimentação de Pessoas.', autoNav: true,
+          nav: () => lumiNavigate('mov', 'dashboard') };
+      }
+    },
+
+    // ── MOV — NOVA REQUISIÇÃO ─────────────────────────
+    {
+      id: 'mov_nova_requisicao',
+      tags: /requisi[cç][aã]o de pessoal|abrir vaga|nova vaga|contratar|recruta/,
+      exec() {
+        if (!is('people','admin','gestor'))
+          return { msg: '⚠️ Você não tem acesso ao módulo MOV.', nav: null, blocked: true };
+        return { msg: '📋 Iniciando requisição de pessoal no MOV.', autoNav: true,
+          nav: () => { state.moduloAtivo='mov'; state.movView='nova'; state.movStep=1; state.movTipoSel={id:'requisicao'}; render(); }
+        };
+      }
+    },
+
+    // ── MOV — DESLIGAMENTO ────────────────────────────
+    {
+      id: 'mov_desligamento',
+      tags: /desligamento|desligar (colaborador|pessoa|funcionario)|demissao|encerrar contrato/,
+      exec() {
+        if (!is('people','admin','gestor'))
+          return { msg: '⚠️ Você não tem acesso ao módulo MOV.', nav: null, blocked: true };
+        return { msg: '📋 Iniciando processo de desligamento no MOV.', autoNav: true,
+          nav: () => { state.moduloAtivo='mov'; state.movView='nova'; state.movStep=1; state.movTipoSel={id:'desligamento'}; render(); }
+        };
+      }
+    },
+
+    // ── MOV — ALTERAÇÃO DE CARGO ──────────────────────
+    {
+      id: 'mov_alteracao',
+      tags: /altera[cç][aã]o de cargo|mudar cargo|promocao|promover|transferencia|alterar (cargo|area|salario)/,
+      exec() {
+        if (!is('people','admin','gestor'))
+          return { msg: '⚠️ Você não tem acesso ao módulo MOV.', nav: null, blocked: true };
+        return { msg: '📋 Iniciando solicitação de alteração de cargo/área no MOV.', autoNav: true,
+          nav: () => { state.moduloAtivo='mov'; state.movView='nova'; state.movStep=1; state.movTipoSel={id:'alteracao'}; render(); }
+        };
+      }
+    },
+
+    // ── MOV — PENDÊNCIAS ──────────────────────────────
+    {
+      id: 'mov_pendencias',
+      tags: /penden(cia|te).*(mov|movimenta)|mov.*(penden|em aberto|andamento)/,
+      exec() {
+        if (!is('people','admin','gestor'))
+          return { msg: '⚠️ Você não tem acesso ao módulo MOV.', nav: null, blocked: true };
+        return {
+          msg: `📋 MOV: <strong>${ctx.movPendentes}</strong> solicitaç${ctx.movPendentes!==1?'ões':'ão'} em aberto.`,
+          nav: () => lumiNavigate('mov', 'dashboard'), navLabel: 'Ver MOV'
+        };
+      }
+    },
+
+    // ── GESTÃO CLT ────────────────────────────────────
+    {
+      id: 'clt',
+      tags: /clt|ferias clt|funcionario clt|colaborador clt|jornada clt/,
+      exec() {
+        return { msg: '📌 O módulo <strong>Gestão CLT</strong> está em desenvolvimento e estará disponível em breve.', nav: null };
+      }
+    },
+
+    // ── CONTRATOS PJ ─────────────────────────────────
+    {
+      id: 'contratos_pj',
+      tags: /contrato(s)? pj|contrato.*(prestador|pj)|vigencia.*(contrato|pj)/,
+      exec() {
+        return { msg: '📌 O módulo <strong>Contratos PJ</strong> está em desenvolvimento e estará disponível em breve.', nav: null };
+      }
+    },
+
+    // ── NOTAS FISCAIS ────────────────────────────────
+    {
+      id: 'notas_fiscais',
+      tags: /nota(s)? fiscal|nf|fatura|invoice/,
+      exec() {
+        return { msg: '📌 O módulo <strong>Notas Fiscais</strong> está em desenvolvimento e estará disponível em breve.', nav: null };
+      }
+    },
+
+    // ── ONBOARDING ────────────────────────────────────
+    {
+      id: 'onboarding',
+      tags: /onboarding|integra[cç][aã]o.*(novo|colaborador)|admissao|admitir|novo colaborador|novo funcionario/,
+      exec() {
+        return { msg: '📌 O módulo <strong>Onboarding</strong> está em desenvolvimento e estará disponível em breve.', nav: null };
+      }
+    },
+
+    // ── OFFBOARDING ───────────────────────────────────
+    {
+      id: 'offboarding',
+      tags: /offboarding|encerramento de jornada|saida.*(colaborador|funcionario)|processo.*(desligamento|saida)/,
+      exec() {
+        return { msg: '📌 O módulo <strong>Offboarding</strong> está em desenvolvimento e estará disponível em breve.', nav: null };
+      }
+    },
+
+    // ── USUÁRIOS (admin) ──────────────────────────────
+    {
+      id: 'usuarios',
+      tags: /usuario(s)?|gerenciar (usuario|pessoa|acesso)|permissao|acesso ao sistema|cadastrar usuario/,
+      exec() {
+        if (!is('admin'))
+          return { msg: '⚠️ Apenas administradores podem gerenciar usuários.', nav: null, blocked: true };
+        return { msg: '⚙️ Abrindo gestão de usuários.', autoNav: true,
+          nav: () => lumiNavigate('ausencias', 'usuarios') };
+      }
+    },
+
+    // ── STATUS GERAL DO SISTEMA ───────────────────────
+    {
+      id: 'status_sistema',
+      tags: /status|resumo geral|como esta(o)? (o sistema|as coisas|tudo)|visao geral do sistema/,
+      exec() {
+        const parts = [
+          `📊 <strong>Resumo atual:</strong>`,
+          `• ${ctx.pendentes} ausência${ctx.pendentes!==1?'s':''} aguardando aprovação`,
+          `• ${ctx.proxima7} ausência${ctx.proxima7!==1?'s':''} nos próximos 7 dias`,
+          `• ${ctx.totalUsers} colaborador${ctx.totalUsers!==1?'es':''} ativo${ctx.totalUsers!==1?'s':''}`,
+        ];
+        if (is('people','admin','gestor') && ctx.movPendentes > 0)
+          parts.push(`• ${ctx.movPendentes} solicitaç${ctx.movPendentes!==1?'ões':'ão'} MOV em aberto`);
+        return { msg: parts.join('<br>'), nav: null };
+      }
+    },
+
+    // ── COMO FAZER (FAQ) ──────────────────────────────
+    {
+      id: 'faq_solicitar',
+      tags: /como (faz|solicito|abro|crio).*(ausencia|ferias|folga|licenca)|como (pedir|solicitar) (ausencia|ferias|folga)/,
+      exec() {
+        return { msg: 'Para solicitar uma ausência: acesse <strong>Ausências → Nova Solicitação</strong>, escolha o período e envie para aprovação do gestor.',
+          nav: () => lumiNavigate('ausencias', 'nova'), navLabel: 'Abrir formulário' };
+      }
+    },
+    {
+      id: 'faq_aprovar',
+      tags: /como (faz|aprovo|recuso|rejeito).*(ausencia|solicita)|processo.*(aprovacao|aprova)/,
+      exec() {
+        if (!is('gestor','admin'))
+          return { msg: 'Solicitações são aprovadas pelo seu gestor direto.', nav: null };
+        return { msg: 'Para aprovar: acesse <strong>Gestão de Ausências → Aprovação do Gestor</strong>, revise e aprove ou recuse cada solicitação.',
+          nav: () => lumiNavigate('ausencias', 'aprovacoes'), navLabel: 'Ir para aprovações' };
+      }
+    },
+    {
+      id: 'faq_saldo',
+      tags: /como.*(calcul|funciona).*(saldo|limite|ciclo)|o que e (saldo|ciclo|limite)/,
+      exec() {
+        return { msg: 'O saldo é calculado com base na data de admissão. Cada ciclo tem um limite de dias (padrão: 30). Dias utilizados em ausências aprovadas são descontados do saldo.', nav: null };
+      }
+    },
+    {
+      id: 'faq_mov',
+      tags: /como.*(usar|funciona|abrir).*(mov|movimenta)|o que e.*(mov|movimenta[cç][aã]o)/,
+      exec() {
+        return { msg: 'O <strong>MOV</strong> gerencia movimentações de pessoas: requisições de vaga, desligamentos e alterações de cargo/área. Acesse pelo Portal People.',
+          nav: () => lumiNavigate('mov', 'dashboard'), navLabel: 'Abrir MOV' };
+      }
+    },
+    {
+      id: 'faq_cancelar',
+      tags: /cancelar (ausencia|solicita)|como cancelo|posso cancelar/,
+      exec() {
+        return { msg: 'Você pode cancelar solicitações com status <strong>Pendente</strong> ou <strong>Aprovada</strong> em <strong>Minhas Ausências</strong>, clicando em "Cancelar".',
+          nav: () => lumiNavigate('ausencias', 'minhas'), navLabel: 'Minhas ausências' };
+      }
+    },
+
+    // ── SAUDAÇÕES ─────────────────────────────────────
+    {
+      id: 'saudacao',
+      tags: /^(oi|ola|bom dia|boa tarde|boa noite|hey|hello|tudo bem|tudo bom|oi lumi|ola lumi)[\s!?.]*$/,
+      exec() {
+        const nome = u.name?.split(' ')[0] || '';
+        return { msg: `Olá, ${nome}! Como posso ajudar você hoje?`, nav: null };
+      }
+    },
+
+    // ── AGRADECIMENTO ─────────────────────────────────
+    {
+      id: 'agradecimento',
+      tags: /^(obrigad|valeu|thanks|brigad|ok obrigad|tudo certo|perfeito|otimo|show)[\w\s!.]*$/,
+      exec() {
+        return { msg: 'Fico à disposição! Se precisar de mais alguma coisa, é só chamar. 😊', nav: null };
+      }
+    },
+
+  ];
+
+  // ── ENGINE: percorrer intenções na ordem ──────────────
+  for (const intencao of intencoes) {
+    if (intencao.tags.test(txt)) {
+      return intencao.exec();
     }
-    return {
-      msg: '📋 Módulo MOV: gerencie requisições, desligamentos e alterações de cargo. Posso te levar lá agora.',
-      nav: () => lumiNavigate('mov', 'dashboard'), navLabel: 'Abrir MOV', autoNav: true
-    };
   }
 
-  // ── CRIAR SOLICITAÇÃO ──────────────────────────────────────────
-  if (txt.match(/criar|nova solicita[çc][aã]o|nova aus[eê]ncia|solicitar/)) {
-    return {
-      msg: '➕ Vou te levar para a tela de nova solicitação de ausência.',
-      nav: () => lumiNavigate('ausencias', 'nova'), navLabel: 'Nova solicitação', autoNav: true
-    };
-  }
-
-  // ── EQUIPE ─────────────────────────────────────────────────────
-  if (txt.match(/equipe|time|colaborador|membro/)) {
-    return {
-      msg: `👥 Sua equipe tem ${ctx.totalUsers} colaborador${ctx.totalUsers!==1?'es':''} ativo${ctx.totalUsers!==1?'s':''}. Acesse a visão de equipe para detalhes.`,
-      nav: () => lumiNavigate('ausencias', 'equipe'), navLabel: 'Ver equipe'
-    };
-  }
-
-  // ── DASHBOARD ──────────────────────────────────────────────────
-  if (txt.match(/dashboard|painel|resumo|overview|início|inicio|home/)) {
-    return {
-      msg: '📊 Abrindo o dashboard de ausências.',
-      nav: () => lumiNavigate('ausencias', 'dashboard'), navLabel: 'Ir para dashboard', autoNav: true
-    };
-  }
-
-  // ── AJUDA / O QUE VOCÊ FAZ ─────────────────────────────────────
-  if (txt.match(/ajuda|help|o que (você|voce) (faz|pode)|como usar|o que é lumi|quem é lumi/)) {
-    return {
-      msg: `👋 Sou a Lumi, assistente do GestAus. Posso te ajudar a:\n• Verificar pendências e ausências\n• Navegar entre módulos (Ausências, MOV, Calendário)\n• Consultar status da equipe\n• Iniciar ações rapidamente\n\nO que você precisa?`,
-      nav: null
-    };
-  }
-
-  // ── PORTAL ─────────────────────────────────────────────────────
-  if (txt.match(/portal|módulos|modulos|voltar/)) {
-    return {
-      msg: '🏠 Voltando para o Portal People.',
-      nav: () => { state.moduloAtivo = null; render(); }, navLabel: 'Ir para o Portal', autoNav: true
-    };
-  }
-
-  // ── FALLBACK ───────────────────────────────────────────────────
+  // ── FALLBACK ──────────────────────────────────────────
   return {
-    msg: `Não entendi completamente, mas posso te ajudar com: pendências, ausências da semana, calendário, equipe, MOV ou criar uma nova solicitação. Tente uma dessas opções ou use as sugestões abaixo.`,
+    msg: 'Não entendi completamente. Posso ajudar com: ausências, pendências, aprovações, calendário, equipe, MOV e muito mais.<br>Tente usar as sugestões ou reformule sua pergunta.',
     nav: null
   };
 }
+
 
 // ── Lumi UI — Chat flutuante ──────────────────────────────────────────────
 let lumiOpen = false;
