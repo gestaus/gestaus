@@ -228,11 +228,14 @@ let state = {
   // portal people
   moduloAtivo: null,       // null = portal | 'ausencias' | 'mov'
   // módulo MOV
-  movView: 'dashboard',    // dashboard | nova | listagem | historico
-  movModal: null,
-  movSolicitacoes: [],     // dados em memória (mock até backend)
+  movView: 'dashboard',
+  movStep: 1,
+  movTipoSel: null,
+  movDetalheId: null,
+  movSolicitacoes: [],
   movFiltroStatus: '',
   movFiltroTipo: '',
+  movFiltroDept: '',
 };
 
 const DEPARTAMENTOS = ['Tecnologia','People','Operações','Produto','Financeiro','Jurídico','Comercial'];
@@ -1531,31 +1534,125 @@ function viewPortalPeople() {
 // ══════════════════════════════════════════
 // MÓDULO MOV — Movimentação de Pessoas
 // ══════════════════════════════════════════
-const MOV_TIPOS = ['Abertura de vaga','Movimentação de área','Mudança de gestor','Outros'];
-const MOV_STATUS_MAP = { Pendente:'badge-pending', 'Em análise':'badge-warn', Aprovada:'badge-approved', Recusada:'badge-rejected', Concluída:'badge-done' };
 
-function criarMovSolicitacao(form) {
-  if (!form.tipo || !form.descricao.trim()) { showToast('Tipo e descrição são obrigatórios', 'error'); return; }
-  state.movSolicitacoes.push({
-    id: Date.now(),
-    tipo: form.tipo,
-    descricao: form.descricao,
-    colaborador: form.colaborador || '',
-    status: 'Pendente',
-    obs: '',
+const MOV_TIPOS = [
+  { id:'requisicao', label:'Requisição de Pessoal', desc:'Abertura de nova vaga' },
+  { id:'desligamento', label:'Desligamento', desc:'Desligamento de colaborador' },
+  { id:'alteracao', label:'Alteração de Cargo / Área / Salário', desc:'Mudança de cargo, área ou remuneração' },
+];
+
+const MOV_STATUS = ['Rascunho','Enviada','Em análise','Aprovada','Reprovada','Concluída'];
+
+const MOV_STATUS_STYLE = {
+  'Rascunho':   { bg:'#f1f0ec', color:'#6b6860' },
+  'Enviada':    { bg:'#eff6ff', color:'#1e40af' },
+  'Em análise': { bg:'#fef3c7', color:'#92400e' },
+  'Aprovada':   { bg:'#d1fae5', color:'#065f46' },
+  'Reprovada':  { bg:'#fee2e2', color:'#991b1b' },
+  'Concluída':  { bg:'#e0e7ff', color:'#3730a3' },
+};
+
+function movBadge(status) {
+  const s = MOV_STATUS_STYLE[status] || { bg:'#f1f0ec', color:'#6b6860' };
+  return `<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;background:${s.bg};color:${s.color}">${status}</span>`;
+}
+
+function movAcaoStatus(id, perfil) {
+  const sol = state.movSolicitacoes.find(x => x.id === id);
+  if (!sol) return '';
+  const acoes = [];
+  if (sol.status === 'Rascunho' && (perfil === 'gestor' || perfil === 'admin' || perfil === 'colaborador')) {
+    acoes.push(`<button class="btn btn-primary btn-sm" onclick="movMudarStatus(${id},'Enviada')">Enviar</button>`);
+  }
+  if (sol.status === 'Enviada' && (perfil === 'people' || perfil === 'admin')) {
+    acoes.push(`<button class="btn btn-secondary btn-sm" onclick="movMudarStatus(${id},'Em análise')">Iniciar análise</button>`);
+  }
+  if (sol.status === 'Em análise' && (perfil === 'people' || perfil === 'admin')) {
+    acoes.push(`<button class="btn btn-primary btn-sm" onclick="movMudarStatus(${id},'Aprovada')">Aprovar</button>`);
+    acoes.push(`<button class="btn btn-danger btn-sm" onclick="movMudarStatus(${id},'Reprovada')">Reprovar</button>`);
+  }
+  if (sol.status === 'Aprovada' && (perfil === 'people' || perfil === 'admin')) {
+    acoes.push(`<button class="btn btn-primary btn-sm" onclick="movMudarStatus(${id},'Concluída')">Concluir</button>`);
+  }
+  return acoes.join(' ');
+}
+
+function movMudarStatus(id, novoStatus) {
+  const sol = state.movSolicitacoes.find(x => x.id === id);
+  if (!sol) return;
+  sol.historico = sol.historico || [];
+  sol.historico.push({ status: novoStatus, por: state.currentUser.name, em: new Date().toISOString() });
+  sol.status = novoStatus;
+  sol.updatedAt = new Date().toISOString().slice(0,10);
+  showToast('Status atualizado para ' + novoStatus + ' ✓');
+  render();
+}
+
+function movCriarSolicitacao(dados) {
+  const id = Date.now();
+  const novo = {
+    id,
+    tipo: dados.tipo,
+    status: dados.acao === 'enviar' ? 'Enviada' : 'Rascunho',
+    solicitanteId: state.currentUser.id,
+    departamento: dados.departamento || '',
+    area: dados.area || '',
+    // campos comuns
+    colaborador: dados.colaborador || '',
+    matricula: dados.matricula || '',
+    gestor: dados.gestor || '',
+    centroCusto: dados.centroCusto || '',
+    cargo: dados.cargo || '',
+    motivo: dados.motivo || '',
+    prioridade: dados.prioridade || '',
+    dataPrevista: dados.dataPrevista || '',
+    observacoes: dados.observacoes || '',
+    // requisição
+    qtdVagas: dados.qtdVagas || '',
+    // desligamento
+    empresa: dados.empresa || '',
+    avisoPrevio: dados.avisoPrevio || '',
+    // alteração
+    departamentoDestino: dados.departamentoDestino || '',
+    areaDestino: dados.areaDestino || '',
+    novoGestor: dados.novoGestor || '',
+    cargoAtual: dados.cargoAtual || '',
+    cargoDestino: dados.cargoDestino || '',
+    salarioAtual: dados.salarioAtual || '',
+    salarioDestino: dados.salarioDestino || '',
+    percentualReajuste: dados.percentualReajuste || '',
+    // auditoria
     criadoEm: new Date().toISOString().slice(0,10),
-    criadoPor: state.currentUser.id,
-  });
-  state.movView = 'listagem';
-  showToast('Solicitação de movimentação criada ✓');
+    updatedAt: new Date().toISOString().slice(0,10),
+    historico: [{ status: dados.acao === 'enviar' ? 'Enviada' : 'Rascunho', por: state.currentUser.name, em: new Date().toISOString() }],
+  };
+  state.movSolicitacoes.push(novo);
+  state.movView = 'solicitacoes';
+  state.movDetalheId = null;
+  showToast(dados.acao === 'enviar' ? 'Solicitação enviada ✓' : 'Rascunho salvo ✓');
   render();
 }
 
 function viewModuloMOV() {
   const u = state.currentUser;
-  const pendentes = state.movSolicitacoes.filter(s => s.status === 'Pendente').length;
+  const abertas  = state.movSolicitacoes.filter(s => !['Concluída','Reprovada'].includes(s.status)).length;
+  const analise  = state.movSolicitacoes.filter(s => s.status === 'Em análise').length;
+  const hoje     = new Date();
+  const mesAtual = hoje.toISOString().slice(0,7);
+  const aprovMes = state.movSolicitacoes.filter(s => s.status === 'Aprovada' && s.updatedAt?.slice(0,7) === mesAtual).length;
+  const concMes  = state.movSolicitacoes.filter(s => s.status === 'Concluída' && s.updatedAt?.slice(0,7) === mesAtual).length;
 
-  // ── Sidebar MOV ──
+  // filtragem por perfil
+  const minhasSols = u.role === 'people' || u.role === 'admin'
+    ? state.movSolicitacoes
+    : u.role === 'gestor'
+      ? state.movSolicitacoes.filter(s => {
+          const sol_user = state.users.find(x => x.id === s.solicitanteId);
+          return s.solicitanteId === u.id || (sol_user && (sol_user.departamento||sol_user.squad) === (u.departamento||u.squad));
+        })
+      : state.movSolicitacoes.filter(s => s.solicitanteId === u.id);
+
+  // ── Sidebar MOV ──────────────────────────────────────────────────────────
   const sidebarMOV = `
   <div id="sidebar">
     <div class="sidebar-brand">
@@ -1563,37 +1660,27 @@ function viewModuloMOV() {
         <div style="width:26px;height:26px;border-radius:7px;background:#1e40af;display:flex;align-items:center;justify-content:center;flex-shrink:0">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="23 21 23 19 19 19"/><polyline points="23 15 19 19 23 23"/></svg>
         </div>
-        <div>
-          <div class="brand-name">MOV</div>
-          <div class="brand-sub">Movimentação de Pessoas</div>
-        </div>
+        <div><div class="brand-name">MOV</div><div class="brand-sub">Movimentação de Pessoas</div></div>
       </div>
     </div>
     <div class="sidebar-user">
       <div class="avatar" style="${u.avatar_url?'background:none;padding:0;overflow:hidden;border-radius:6px':''}">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px">`:u.avatar||u.name.slice(0,2).toUpperCase()}</div>
-      <div style="min-width:0">
-        <div class="user-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.name}</div>
-        <div class="user-role">People</div>
-      </div>
+      <div style="min-width:0"><div class="user-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.name}</div><div class="user-role">${u.role}</div></div>
     </div>
     <nav style="overflow-y:auto;flex:1">
       <div class="nav-section">Módulo MOV</div>
-      <div class="nav-item ${state.movView==='dashboard'?'active':''}" onclick="state.movView='dashboard';render()">
+      <div class="nav-item ${state.movView==='dashboard'&&!state.movDetalheId?'active':''}" onclick="state.movView='dashboard';state.movDetalheId=null;render()">
         <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
         <span>Dashboard</span>
       </div>
-      <div class="nav-item ${state.movView==='nova'?'active':''}" onclick="state.movView='nova';render()">
+      <div class="nav-item ${state.movView==='nova'?'active':''}" onclick="state.movView='nova';state.movStep=1;state.movTipoSel=null;state.movDetalheId=null;render()">
         <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></span>
         <span>Nova Solicitação</span>
       </div>
-      <div class="nav-item ${state.movView==='listagem'?'active':''}" onclick="state.movView='listagem';render()">
+      <div class="nav-item ${(state.movView==='solicitacoes'||state.movDetalheId)?'active':''}" onclick="state.movView='solicitacoes';state.movDetalheId=null;render()">
         <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span>
         <span>Solicitações</span>
-        ${pendentes>0?`<span class="nav-badge">${pendentes}</span>`:''}
-      </div>
-      <div class="nav-item ${state.movView==='historico'?'active':''}" onclick="state.movView='historico';render()">
-        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
-        <span>Histórico</span>
+        ${abertas>0?`<span class="nav-badge">${abertas}</span>`:''}
       </div>
       <div style="border-top:1px solid var(--border);margin:8px 0"></div>
       <div class="nav-item" onclick="state.moduloAtivo=null;render()" style="color:var(--text3)">
@@ -1609,144 +1696,326 @@ function viewModuloMOV() {
     </div>
   </div>`;
 
-  // ── Conteúdo por subview ──
-  let mainContent = '';
+  // ── Conteúdo por view ────────────────────────────────────────────────────
+  let main = '';
 
-  if (state.movView === 'dashboard') {
-    const total = state.movSolicitacoes.length;
-    const porTipo = MOV_TIPOS.map(t => ({
-      tipo: t,
-      total: state.movSolicitacoes.filter(s => s.tipo === t).length
-    })).filter(x => x.total > 0);
-
-    mainContent = `
-    <div id="content">
-      <div class="page-header flex-between" style="margin-bottom:24px">
-        <div>
-          <div class="page-title">Dashboard MOV</div>
-          <div class="page-desc">Movimentação de Pessoas · visão geral</div>
-        </div>
-        <button class="btn btn-primary" onclick="state.movView='nova';render()">+ Nova solicitação</button>
-      </div>
-      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
-        <div class="stat-card"><div class="stat-label">Total solicitações</div><div class="stat-value stat-blue">${total}</div><div class="stat-sub">registradas</div></div>
-        <div class="stat-card"><div class="stat-label">Pendentes</div><div class="stat-value ${pendentes>0?'stat-amber':'stat-green'}">${pendentes}</div><div class="stat-sub">aguardando análise</div></div>
-        <div class="stat-card"><div class="stat-label">Concluídas</div><div class="stat-value stat-green">${state.movSolicitacoes.filter(s=>s.status==='Concluída').length}</div><div class="stat-sub">finalizadas</div></div>
-      </div>
-      ${total === 0 ? `
-      <div class="card" style="margin-top:8px">
-        <div class="empty-state"><div class="empty-icon">🔄</div>
-          <div class="empty-text">Nenhuma solicitação de movimentação ainda</div>
-          <div class="empty-sub" style="margin-bottom:16px">Crie a primeira solicitação para este módulo</div>
-          <button class="btn btn-primary" onclick="state.movView='nova';render()">+ Nova solicitação</button>
-        </div>
-      </div>` : `
-      <div class="card" style="margin-top:8px">
-        <div class="card-title" style="margin-bottom:14px">Últimas solicitações</div>
-        <div class="table-wrap" style="border:none"><table>
-          <thead><tr><th>Tipo</th><th>Colaborador</th><th>Status</th><th>Criado em</th></tr></thead>
-          <tbody>${state.movSolicitacoes.slice(-5).reverse().map(s=>`<tr>
-            <td style="font-size:13px">${s.tipo}</td>
-            <td style="font-size:13px;color:var(--text2)">${s.colaborador||'—'}</td>
-            <td><span class="badge ${MOV_STATUS_MAP[s.status]||'badge-pending'}">${s.status}</span></td>
-            <td style="font-size:12px;color:var(--text3)">${formatDate(s.criadoEm)}</td>
-          </tr>`).join('')}</tbody>
-        </table></div>
-      </div>`}
-      ${porTipo.length > 0 ? `
-      <div class="card" style="margin-top:14px">
-        <div class="card-title" style="margin-bottom:14px">Distribuição por tipo</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          ${porTipo.map(t => `
+  // DETALHE
+  if (state.movDetalheId) {
+    const sol = state.movSolicitacoes.find(x => x.id === state.movDetalheId);
+    const tipoLabel = MOV_TIPOS.find(t => t.id === sol?.tipo)?.label || sol?.tipo || '—';
+    const solUser = getUserById(sol?.solicitanteId);
+    if (!sol) { main = `<div id="content"><div class="empty-state"><div class="empty-text">Solicitação não encontrada</div></div></div>`; }
+    else {
+      const campos = [];
+      if (sol.tipo === 'requisicao') {
+        campos.push(['Departamento', sol.departamento],['Área', sol.area],['Gestor solicitante', sol.gestor],['Centro de custo', sol.centroCusto],['Cargo/Função', sol.cargo],['Qtd. vagas', sol.qtdVagas],['Motivo', sol.motivo],['Prioridade', sol.prioridade],['Data desejada', sol.dataPrevista ? formatDate(sol.dataPrevista) : '—'],['Observações', sol.observacoes]);
+      } else if (sol.tipo === 'desligamento') {
+        campos.push(['Colaborador', sol.colaborador],['Matrícula', sol.matricula],['Empresa/Unidade', sol.empresa],['Departamento', sol.departamento],['Área', sol.area],['Gestor', sol.gestor],['Cargo', sol.cargo],['Centro de custo', sol.centroCusto],['Motivo', sol.motivo],['Data prevista', sol.dataPrevista ? formatDate(sol.dataPrevista) : '—'],['Aviso prévio', sol.avisoPrevio],['Observações', sol.observacoes]);
+      } else {
+        campos.push(['Colaborador', sol.colaborador],['Matrícula', sol.matricula],['Depto. atual', sol.departamento],['Área atual', sol.area],['Depto. destino', sol.departamentoDestino],['Área destino', sol.areaDestino],['Gestor atual', sol.gestor],['Novo gestor', sol.novoGestor],['Cargo atual', sol.cargoAtual],['Cargo proposto', sol.cargoDestino],['Salário atual', sol.salarioAtual],['Salário proposto', sol.salarioDestino],['% reajuste', sol.percentualReajuste ? sol.percentualReajuste + '%' : '—'],['Motivo', sol.motivo],['Data prevista', sol.dataPrevista ? formatDate(sol.dataPrevista) : '—'],['Observações', sol.observacoes]);
+      }
+      main = `<div id="content">
+        <div class="flex-between page-header">
           <div>
-            <div class="flex-between" style="margin-bottom:4px">
-              <span style="font-size:12px;color:var(--text2)">${t.tipo}</span>
-              <span style="font-size:12px;font-weight:500">${t.total}</span>
+            <button class="btn btn-secondary btn-sm" onclick="state.movDetalheId=null;state.movView='solicitacoes';render()" style="margin-bottom:10px">← Voltar</button>
+            <div class="page-title">${tipoLabel}</div>
+            <div class="page-desc">Solicitação #${sol.id} · ${solUser?.name||'—'} · ${formatDate(sol.criadoEm)}</div>
+          </div>
+          <div>${movBadge(sol.status)}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
+          <div class="card">
+            <div class="card-title" style="margin-bottom:14px">Dados da solicitação</div>
+            <table style="width:100%;font-size:13px;border-collapse:collapse">
+              ${campos.map(([k,v])=>`<tr><td style="color:var(--text3);padding:5px 0;width:45%">${k}</td><td style="font-weight:400;padding:5px 0">${v||'—'}</td></tr>`).join('')}
+            </table>
+          </div>
+          <div>
+            <div class="card" style="margin-bottom:14px">
+              <div class="card-title" style="margin-bottom:10px">Ações disponíveis</div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                ${movAcaoStatus(sol.id, u.role) || '<span style="font-size:13px;color:var(--text3)">Nenhuma ação disponível</span>'}
+              </div>
             </div>
-            <div class="progress-bar"><div class="progress-fill progress-green" style="width:${Math.round(t.total/total*100)}%"></div></div>
+            <div class="card">
+              <div class="card-title" style="margin-bottom:12px">Linha do tempo</div>
+              ${(sol.historico||[]).map((h,i)=>`
+              <div style="display:flex;gap:10px;padding-bottom:${i<sol.historico.length-1?'12':'0'}px">
+                <div style="display:flex;flex-direction:column;align-items:center">
+                  <div style="width:8px;height:8px;border-radius:50%;background:${i===sol.historico.length-1?'#1a5c3a':'var(--border)'};margin-top:4px;flex-shrink:0"></div>
+                  ${i<sol.historico.length-1?`<div style="width:1px;flex:1;background:var(--border);margin:4px 0"></div>`:''}
+                </div>
+                <div style="padding-bottom:4px">
+                  <div style="font-size:13px;font-weight:500">${h.status}</div>
+                  <div style="font-size:11px;color:var(--text3)">${h.por} · ${formatDate(h.em.slice(0,10))}</div>
+                </div>
+              </div>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }
+  }
+
+  // DASHBOARD
+  else if (state.movView === 'dashboard') {
+    const recentes = minhasSols.slice().sort((a,b)=>b.criadoEm.localeCompare(a.criadoEm)).slice(0,5);
+    const atencao  = minhasSols.filter(s => {
+      const dias = Math.round((new Date()-new Date(s.updatedAt))/86400000);
+      return ['Enviada','Em análise'].includes(s.status) && dias >= 3;
+    });
+    main = `<div id="content">
+      <div class="page-header flex-between">
+        <div><div class="page-title">Dashboard MOV</div><div class="page-desc">Movimentação de Pessoas · visão geral</div></div>
+        <button class="btn btn-primary" onclick="state.movView='nova';state.movStep=1;state.movTipoSel=null;render()">+ Nova solicitação</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+        <div class="stat-card"><div class="stat-label">Abertas</div><div class="stat-value stat-blue">${abertas}</div><div class="stat-sub">em andamento</div></div>
+        <div class="stat-card"><div class="stat-label">Em análise</div><div class="stat-value stat-amber">${analise}</div><div class="stat-sub">aguardando People</div></div>
+        <div class="stat-card"><div class="stat-label">Aprovadas no mês</div><div class="stat-value stat-green">${aprovMes}</div><div class="stat-sub">${mesAtual}</div></div>
+        <div class="stat-card"><div class="stat-label">Concluídas no mês</div><div class="stat-value stat-blue">${concMes}</div><div class="stat-sub">${mesAtual}</div></div>
+      </div>
+      ${atencao.length>0?`
+      <div class="card mb-6" style="border-left:3px solid #f59e0b;border-radius:0 var(--radius) var(--radius) 0">
+        <div class="card-title" style="margin-bottom:10px;color:var(--warn)">⚠ Requer atenção</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${atencao.map(s=>{
+            const dias=Math.round((new Date()-new Date(s.updatedAt))/86400000);
+            const tipoLabel=MOV_TIPOS.find(t=>t.id===s.tipo)?.label||s.tipo;
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+              <div><div style="font-size:13px;font-weight:500">${tipoLabel}</div><div style="font-size:11px;color:var(--text3)">#${s.id} · ${s.departamento||'—'}</div></div>
+              <div style="text-align:right">${movBadge(s.status)}<div style="font-size:11px;color:var(--warn);margin-top:3px">Parada há ${dias} dias</div></div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`:''}
+      <div class="card">
+        <div class="flex-between mb-4">
+          <div><div class="card-title">Últimas solicitações</div><div class="card-sub">${minhasSols.length} no total</div></div>
+          <button class="btn btn-secondary btn-sm" onclick="state.movView='solicitacoes';state.movDetalheId=null;render()">Ver todas</button>
+        </div>
+        ${recentes.length===0?`<div class="empty-state" style="padding:24px"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma solicitação ainda</div></div>`:`
+        <div class="table-wrap" style="border:none"><table>
+          <thead><tr><th>ID</th><th>Tipo</th><th>Departamento</th><th>Status</th><th>Criado em</th><th></th></tr></thead>
+          <tbody>${recentes.map(s=>{
+            const tl=MOV_TIPOS.find(t=>t.id===s.tipo)?.label||s.tipo;
+            return `<tr>
+              <td style="font-size:12px;color:var(--text3)">#${s.id.toString().slice(-4)}</td>
+              <td style="font-size:13px;font-weight:500">${tl}</td>
+              <td style="font-size:12px;color:var(--text2)">${s.departamento||'—'}</td>
+              <td>${movBadge(s.status)}</td>
+              <td style="font-size:12px;color:var(--text3)">${formatDate(s.criadoEm)}</td>
+              <td><button class="btn btn-secondary btn-sm" onclick="state.movDetalheId=${s.id};render()">Ver</button></td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table></div>`}
+      </div>
+    </div>`;
+  }
+
+  // NOVA SOLICITAÇÃO
+  else if (state.movView === 'nova') {
+    const step = state.movStep || 1;
+    const tipoSel = state.movTipoSel || null;
+    if (step === 1) {
+      main = `<div id="content">
+        <div class="page-header"><div class="page-title">Nova Solicitação</div><div class="page-desc">Passo 1 de 2 — Selecione o tipo</div></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;max-width:800px">
+          ${MOV_TIPOS.map(t=>`
+          <div onclick="state.movTipoSel='${t.id}';state.movStep=2;render()"
+            style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:24px 20px;cursor:pointer;transition:all .15s"
+            onmouseover="this.style.borderColor='#1e40af';this.style.transform='translateY(-2px)'"
+            onmouseout="this.style.borderColor='var(--border)';this.style.transform='translateY(0)'">
+            <div style="width:40px;height:40px;border-radius:9px;background:#eff6ff;display:flex;align-items:center;justify-content:center;margin-bottom:14px">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">${t.label}</div>
+            <div style="font-size:12px;color:var(--text3)">${t.desc}</div>
           </div>`).join('')}
         </div>
-      </div>` : ''}
-    </div>`;
-  }
+      </div>`;
+    } else {
+      const tipo = tipoSel;
+      const depts = DEPARTAMENTOS;
+      const areas = AREAS;
+      const gestores = state.users.filter(x=>x.role==='gestor'||x.role==='admin');
+      const colaboradores = state.users.filter(x=>x.role==='colaborador');
+      const tipoLabel = MOV_TIPOS.find(t=>t.id===tipo)?.label||'';
 
-  else if (state.movView === 'nova') {
-    mainContent = `
-    <div id="content">
-      <div class="page-header"><div class="page-title">Nova Solicitação</div><div class="page-desc">Movimentação de Pessoas</div></div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;align-items:start">
-        <div class="card">
-          <div class="form-group">
-            <label>Tipo de movimentação *</label>
-            <select id="mov-tipo">
-              <option value="">Selecione o tipo</option>
-              ${MOV_TIPOS.map(t=>`<option value="${t}">${t}</option>`).join('')}
-            </select>
+      let formFields = '';
+      if (tipo === 'requisicao') {
+        formFields = `
+        <div class="form-row">
+          <div class="form-group"><label>Departamento *</label><select id="mov-departamento"><option value="">Selecione</option>${depts.map(d=>`<option>${d}</option>`).join('')}</select></div>
+          <div class="form-group"><label>Área *</label><select id="mov-area"><option value="">Selecione</option>${areas.map(a=>`<option>${a}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Gestor solicitante</label><select id="mov-gestor"><option value="">Selecione</option>${gestores.map(g=>`<option value="${g.name}">${g.name}</option>`).join('')}</select></div>
+          <div class="form-group"><label>Centro de custo</label><input type="text" id="mov-centroCusto" placeholder="Ex: CC-001"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Cargo / Função</label><input type="text" id="mov-cargo" placeholder="Ex: Analista de Dados"></div>
+          <div class="form-group"><label>Quantidade de vagas</label><input type="number" id="mov-qtdVagas" min="1" value="1"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Motivo</label><input type="text" id="mov-motivo" placeholder="Ex: Crescimento de equipe"></div>
+          <div class="form-group"><label>Prioridade</label><select id="mov-prioridade"><option value="">Selecione</option><option>Alta</option><option>Média</option><option>Baixa</option></select></div>
+        </div>
+        <div class="form-group"><label>Data desejada</label><input type="date" id="mov-dataPrevista"></div>
+        <div class="form-group"><label>Observações</label><textarea id="mov-observacoes" placeholder="Informações adicionais..."></textarea></div>`;
+      } else if (tipo === 'desligamento') {
+        formFields = `
+        <div class="form-row">
+          <div class="form-group"><label>Colaborador *</label><select id="mov-colaborador"><option value="">Selecione</option>${colaboradores.map(c=>`<option value="${c.name}">${c.name}</option>`).join('')}</select></div>
+          <div class="form-group"><label>Matrícula</label><input type="text" id="mov-matricula" placeholder="Ex: 00123"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Empresa / Unidade</label><input type="text" id="mov-empresa" placeholder="Ex: WAP Ind."></div>
+          <div class="form-group"><label>Departamento *</label><select id="mov-departamento"><option value="">Selecione</option>${depts.map(d=>`<option>${d}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Área *</label><select id="mov-area"><option value="">Selecione</option>${areas.map(a=>`<option>${a}</option>`).join('')}</select></div>
+          <div class="form-group"><label>Gestor</label><select id="mov-gestor"><option value="">Selecione</option>${gestores.map(g=>`<option value="${g.name}">${g.name}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Cargo</label><input type="text" id="mov-cargo" placeholder="Ex: Dev"></div>
+          <div class="form-group"><label>Centro de custo</label><input type="text" id="mov-centroCusto" placeholder="Ex: CC-001"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Motivo do desligamento *</label><input type="text" id="mov-motivo" placeholder="Ex: Pedido do colaborador"></div>
+          <div class="form-group"><label>Data prevista *</label><input type="date" id="mov-dataPrevista"></div>
+        </div>
+        <div class="form-group"><label>Aviso prévio</label><select id="mov-avisoPrevio"><option value="">Selecione</option><option>Com aviso prévio</option><option>Sem aviso prévio</option><option>Indenizado</option></select></div>
+        <div class="form-group"><label>Observações</label><textarea id="mov-observacoes" placeholder="Informações adicionais..."></textarea></div>`;
+      } else {
+        formFields = `
+        <div class="form-row">
+          <div class="form-group"><label>Colaborador *</label><select id="mov-colaborador"><option value="">Selecione</option>${colaboradores.map(c=>`<option value="${c.name}">${c.name}</option>`).join('')}</select></div>
+          <div class="form-group"><label>Matrícula</label><input type="text" id="mov-matricula" placeholder="Ex: 00123"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Departamento atual *</label><select id="mov-departamento"><option value="">Selecione</option>${depts.map(d=>`<option>${d}</option>`).join('')}</select></div>
+          <div class="form-group"><label>Área atual *</label><select id="mov-area"><option value="">Selecione</option>${areas.map(a=>`<option>${a}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Departamento destino</label><select id="mov-departamentoDestino"><option value="">Selecione</option>${depts.map(d=>`<option>${d}</option>`).join('')}</select></div>
+          <div class="form-group"><label>Área destino</label><select id="mov-areaDestino"><option value="">Selecione</option>${areas.map(a=>`<option>${a}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Gestor atual</label><select id="mov-gestor"><option value="">Selecione</option>${gestores.map(g=>`<option value="${g.name}">${g.name}</option>`).join('')}</select></div>
+          <div class="form-group"><label>Novo gestor</label><select id="mov-novoGestor"><option value="">Selecione</option>${gestores.map(g=>`<option value="${g.name}">${g.name}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Cargo atual</label><input type="text" id="mov-cargoAtual" placeholder="Ex: Dev Jr"></div>
+          <div class="form-group"><label>Cargo proposto</label><input type="text" id="mov-cargoDestino" placeholder="Ex: Dev Pleno"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Salário atual</label><input type="text" id="mov-salarioAtual" placeholder="Ex: 5000"></div>
+          <div class="form-group"><label>Salário proposto</label><input type="text" id="mov-salarioDestino" placeholder="Ex: 6000" oninput="const a=parseFloat(document.getElementById('mov-salarioAtual')?.value)||0;const b=parseFloat(this.value)||0;const el=document.getElementById('mov-pct');if(el&&a>0)el.value=((b-a)/a*100).toFixed(1)"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>% Reajuste</label><input type="number" id="mov-pct" placeholder="Calculado automaticamente" step="0.1"></div>
+          <div class="form-group"><label>Data prevista *</label><input type="date" id="mov-dataPrevista"></div>
+        </div>
+        <div class="form-group"><label>Motivo *</label><input type="text" id="mov-motivo" placeholder="Ex: Promoção por desempenho"></div>
+        <div class="form-group"><label>Observações</label><textarea id="mov-observacoes" placeholder="Informações adicionais..."></textarea></div>`;
+      }
+
+      const coletarDados = (acao) => `{
+        tipo:'${tipo}',acao:'${acao}',
+        departamento: document.getElementById('mov-departamento')?.value||'',
+        area: document.getElementById('mov-area')?.value||'',
+        gestor: document.getElementById('mov-gestor')?.value||'',
+        centroCusto: document.getElementById('mov-centroCusto')?.value||'',
+        cargo: document.getElementById('mov-cargo')?.value||'',
+        qtdVagas: document.getElementById('mov-qtdVagas')?.value||'',
+        motivo: document.getElementById('mov-motivo')?.value||'',
+        prioridade: document.getElementById('mov-prioridade')?.value||'',
+        dataPrevista: document.getElementById('mov-dataPrevista')?.value||'',
+        observacoes: document.getElementById('mov-observacoes')?.value||'',
+        colaborador: document.getElementById('mov-colaborador')?.value||'',
+        matricula: document.getElementById('mov-matricula')?.value||'',
+        empresa: document.getElementById('mov-empresa')?.value||'',
+        avisoPrevio: document.getElementById('mov-avisoPrevio')?.value||'',
+        departamentoDestino: document.getElementById('mov-departamentoDestino')?.value||'',
+        areaDestino: document.getElementById('mov-areaDestino')?.value||'',
+        novoGestor: document.getElementById('mov-novoGestor')?.value||'',
+        cargoAtual: document.getElementById('mov-cargoAtual')?.value||'',
+        cargoDestino: document.getElementById('mov-cargoDestino')?.value||'',
+        salarioAtual: document.getElementById('mov-salarioAtual')?.value||'',
+        salarioDestino: document.getElementById('mov-salarioDestino')?.value||'',
+        percentualReajuste: document.getElementById('mov-pct')?.value||'',
+      }`;
+
+      main = `<div id="content">
+        <div class="page-header">
+          <button class="btn btn-secondary btn-sm" onclick="state.movStep=1;state.movTipoSel=null;render()" style="margin-bottom:10px">← Voltar</button>
+          <div class="page-title">${tipoLabel}</div>
+          <div class="page-desc">Passo 2 de 2 — Preencha os dados</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 280px;gap:20px;align-items:start">
+          <div class="card">
+            ${formFields}
+            <div class="flex gap-2" style="justify-content:flex-end;margin-top:8px;border-top:1px solid var(--border);padding-top:16px">
+              <button class="btn btn-secondary" onclick="movCriarSolicitacao(${coletarDados('rascunho')})">Salvar rascunho</button>
+              <button class="btn btn-primary" onclick="movCriarSolicitacao(${coletarDados('enviar')})">Enviar solicitação</button>
+            </div>
           </div>
-          <div class="form-group">
-            <label>Colaborador envolvido</label>
-            <select id="mov-colab">
-              <option value="">Selecione (opcional)</option>
-              ${state.users.filter(x=>x.role!=='admin').map(x=>`<option value="${x.name}">${x.name} — ${x.departamento||x.squad||'—'}</option>`).join('')}
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Descrição *</label>
-            <textarea id="mov-desc" placeholder="Descreva a solicitação de movimentação..." style="min-height:100px"></textarea>
-          </div>
-          <div class="flex gap-2" style="justify-content:flex-end">
-            <button class="btn btn-secondary" onclick="state.movView='dashboard';render()">Cancelar</button>
-            <button class="btn btn-primary" onclick="criarMovSolicitacao({
-              tipo: document.getElementById('mov-tipo').value,
-              colaborador: document.getElementById('mov-colab').value,
-              descricao: document.getElementById('mov-desc').value
-            })">Criar solicitação</button>
+          <div class="card" style="background:var(--info-light);border-color:#bfdbfe">
+            <div style="font-size:12px;font-weight:600;color:var(--info);margin-bottom:8px">ℹ Fluxo de aprovação</div>
+            <div style="font-size:12px;color:var(--info);line-height:1.9">
+              ${MOV_STATUS.map((s,i)=>`<div style="display:flex;align-items:center;gap:6px"><div style="width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.4"></div>${s}</div>`).join('')}
+            </div>
           </div>
         </div>
-        <div class="card" style="background:var(--info-light);border-color:#bfdbfe">
-          <div style="font-size:12px;font-weight:600;color:var(--info);margin-bottom:10px">ℹ️ Tipos de movimentação</div>
-          <ul style="font-size:12px;color:var(--info);line-height:1.9;padding-left:16px">
-            <li><strong>Abertura de vaga</strong> — nova posição na equipe</li>
-            <li><strong>Movimentação de área</strong> — colaborador muda de equipe</li>
-            <li><strong>Mudança de gestor</strong> — alteração de responsável</li>
-            <li><strong>Outros</strong> — demais solicitações de RH</li>
-          </ul>
-        </div>
-      </div>
-    </div>`;
+      </div>`;
+    }
   }
 
-  else if (state.movView === 'listagem' || state.movView === 'historico') {
-    const isHist = state.movView === 'historico';
-    const lista = isHist
-      ? state.movSolicitacoes.filter(s=>['Concluída','Recusada'].includes(s.status))
-      : state.movSolicitacoes.filter(s=>!['Concluída','Recusada'].includes(s.status));
+  // SOLICITAÇÕES
+  else {
+    const filtroTipo   = state.movFiltroTipo   || '';
+    const filtroStatus = state.movFiltroStatus || '';
+    const filtroDept   = state.movFiltroDept   || '';
+    let lista = minhasSols.slice().sort((a,b)=>b.criadoEm.localeCompare(a.criadoEm));
+    if (filtroTipo)   lista = lista.filter(s => s.tipo === filtroTipo);
+    if (filtroStatus) lista = lista.filter(s => s.status === filtroStatus);
+    if (filtroDept)   lista = lista.filter(s => s.departamento === filtroDept);
 
-    mainContent = `
-    <div id="content">
+    main = `<div id="content">
       <div class="page-header flex-between">
-        <div>
-          <div class="page-title">${isHist?'Histórico':'Solicitações'}</div>
-          <div class="page-desc">${lista.length} registro(s)</div>
-        </div>
-        ${!isHist?`<button class="btn btn-primary" onclick="state.movView='nova';render()">+ Nova solicitação</button>`:''}
+        <div><div class="page-title">Solicitações</div><div class="page-desc">${lista.length} resultado(s)</div></div>
+        <button class="btn btn-primary" onclick="state.movView='nova';state.movStep=1;state.movTipoSel=null;render()">+ Nova</button>
       </div>
-      ${lista.length === 0 ? `<div class="empty-state card"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma solicitação ${isHist?'no histórico':'em aberto'}</div></div>` : `
+      <div class="card mb-4" style="padding:14px 16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          <div><label>Tipo</label><select onchange="state.movFiltroTipo=this.value;render()"><option value="">Todos</option>${MOV_TIPOS.map(t=>`<option value="${t.id}" ${filtroTipo===t.id?'selected':''}>${t.label}</option>`).join('')}</select></div>
+          <div><label>Status</label><select onchange="state.movFiltroStatus=this.value;render()"><option value="">Todos</option>${MOV_STATUS.map(s=>`<option value="${s}" ${filtroStatus===s?'selected':''}>${s}</option>`).join('')}</select></div>
+          <div><label>Departamento</label><select onchange="state.movFiltroDept=this.value;render()"><option value="">Todos</option>${DEPARTAMENTOS.map(d=>`<option value="${d}" ${filtroDept===d?'selected':''}>${d}</option>`).join('')}</select></div>
+        </div>
+      </div>
+      ${lista.length===0?`<div class="empty-state card"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma solicitação encontrada</div></div>`:`
       <div class="table-wrap"><table>
-        <thead><tr><th>Tipo</th><th>Colaborador</th><th>Descrição</th><th>Status</th><th>Criado em</th>${!isHist?'<th>Ações</th>':''}</tr></thead>
-        <tbody>${lista.slice().reverse().map(s=>`<tr>
-          <td style="font-size:13px;font-weight:500">${s.tipo}</td>
-          <td style="font-size:12px;color:var(--text2)">${s.colaborador||'—'}</td>
-          <td style="font-size:12px;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.descricao}</td>
-          <td><span class="badge ${MOV_STATUS_MAP[s.status]||'badge-pending'}">${s.status}</span></td>
-          <td style="font-size:12px;color:var(--text3)">${formatDate(s.criadoEm)}</td>
-          ${!isHist?`<td>
-            <select style="font-size:11px;padding:3px 6px;border-radius:4px;border:1px solid var(--border)" onchange="(function(el){const s=state.movSolicitacoes.find(x=>x.id===${s.id});if(s){s.status=el.value;showToast('Status atualizado');render()}})(this)">
-              ${['Pendente','Em análise','Aprovada','Recusada','Concluída'].map(st=>`<option value="${st}" ${s.status===st?'selected':''}>${st}</option>`).join('')}
-            </select>
-          </td>`:''}
-        </tr>`).join('')}
-        </tbody>
+        <thead><tr><th>ID</th><th>Tipo</th><th>Solicitante</th><th>Depto / Área</th><th>Status</th><th>Criado em</th><th>Atualizado</th><th>Ações</th></tr></thead>
+        <tbody>${lista.map(s=>{
+          const tl=MOV_TIPOS.find(t=>t.id===s.tipo)?.label||s.tipo;
+          const su=getUserById(s.solicitanteId);
+          return `<tr>
+            <td style="font-size:11px;color:var(--text3)">#${s.id.toString().slice(-4)}</td>
+            <td style="font-size:13px;font-weight:500;max-width:160px">${tl}</td>
+            <td style="font-size:12px;color:var(--text2)">${su?.name?.split(' ')[0]||'—'}</td>
+            <td style="font-size:11px;color:var(--text3)">${s.departamento||'—'}${s.area?' / '+s.area:''}</td>
+            <td>${movBadge(s.status)}</td>
+            <td style="font-size:11px;color:var(--text3)">${formatDate(s.criadoEm)}</td>
+            <td style="font-size:11px;color:var(--text3)">${formatDate(s.updatedAt)}</td>
+            <td>
+              <div class="flex gap-2">
+                <button class="btn btn-secondary btn-sm" onclick="state.movDetalheId=${s.id};render()">Ver</button>
+                ${movAcaoStatus(s.id,u.role)}
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}</tbody>
       </table></div>`}
     </div>`;
   }
@@ -1757,15 +2026,12 @@ function viewModuloMOV() {
     <div id="main" style="flex:1;overflow-y:auto">
       <div id="topbar">
         <div style="font-size:13px;font-weight:500;color:var(--text2)">🔄 Movimentação de Pessoas</div>
-        <div class="flex gap-2">
-          <button class="btn btn-secondary btn-sm" onclick="state.moduloAtivo=null;render()">← Portal People</button>
-        </div>
+        <button class="btn btn-secondary btn-sm" onclick="state.moduloAtivo=null;render()">← Portal People</button>
       </div>
-      ${mainContent}
+      ${main}
     </div>
   </div>`;
 }
-
 function viewCalendario() {
   const now=new Date(); const year=now.getFullYear(); const month=now.getMonth();
   const firstDay=new Date(year,month,1).getDay();
