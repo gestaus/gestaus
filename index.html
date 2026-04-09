@@ -320,8 +320,9 @@
 // ══════════════════════════════════════════
 // SUPABASE — configuração
 // ══════════════════════════════════════════
+// ⚠️ SEGURANÇA: credenciais expostas no frontend — mover para variáveis de ambiente em produção
 const SUPABASE_URL  = 'https://qbyoprtefkdgcnhedxtf.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFieW9wcnRlZmtkZ2NuaGVkeHRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTk1MzUsImV4cCI6MjA5MDQ3NTUzNX0.9C92opyhCNewB9vRzigfx_Tmz-SFpXMhwKZ0YCe2XLQ';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFieW9wcnRlZmtkZ2NuaGVkeHRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTk1MzUsImV4cCI6MjA5MDQ3NTUzNX0.9C92opyhCNewB9vRzigfx_Tmz-SFpXMhwKZ0YCe2XLQ'; // ⚠️ anon key — RLS deve estar habilitado no Supabase
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ══════════════════════════════════════════
@@ -554,11 +555,19 @@ function _idsVisivelParaGestor(u) {
 function getSolicitacoesDaArea(u) {
   if (!u) return [];
   if (u.role === 'admin') return state.solicitacoes;
+  if (u.role === 'people') return state.solicitacoes; // people vê todas para ciência
   if (u.role === 'gestor') {
     const ids = _idsVisivelParaGestor(u);
     return state.solicitacoes.filter(s => ids.includes(s.user_id));
   }
   return state.solicitacoes.filter(s => s.user_id === u.id);
+}
+
+// Helper isolado para escopo people — preparado para evolução futura
+function getSolicitacoesParaPeople(u) {
+  // Atualmente retorna todas (comportamento atual)
+  // Futuramente pode filtrar por departamento/área do people
+  return state.solicitacoes;
 }
 
 function getPendingDaArea(u) {
@@ -639,7 +648,12 @@ async function criarSolicitacao() {
 
 async function aprovar(id) {
   try {
-    await dbAtualizarSolicitacao(id, { status: 'Aprovada', obs: state.approvalObs || 'Aprovado' });
+    await dbAtualizarSolicitacao(id, {
+      status: 'Aprovada',
+      obs: state.approvalObs || 'Aprovado',
+      approved_by: state.currentUser?.id || null,          // quem aprovou
+      approved_at: new Date().toISOString(),                // quando aprovou
+    });
     state.approvalModal = null; state.approvalObs = '';
     showToast('Solicitação aprovada com sucesso ✓');
   } catch(e) { showToast('Erro ao aprovar', 'error'); }
@@ -1416,7 +1430,11 @@ function viewSidebar() {
       <div class="nav-parent ${subCls}" onclick="state.menuAusenciasOpen=!state.menuAusenciasOpen;render()">
         <span class="nav-icon" style="opacity:.6">${ico.gestao}</span>
         <span>Gestão de Ausências</span>
-        ${(pending+peopleCount)>0?`<span class="nav-badge">${pending+peopleCount}</span>`:''}
+        ${(() => {
+        // Badge correto por perfil: gestor vê só pending, people vê só peopleCount
+        const badgeN = u.role==='people' ? peopleCount : (pending + (u.role==='admin' ? peopleCount : 0));
+        return badgeN>0 ? `<span class="nav-badge">${badgeN}</span>` : '';
+      })()}
         <span class="nav-chevron ${subCls}">${ico.chevron}</span>
       </div>
       <div class="nav-sub ${subCls}">
@@ -2176,7 +2194,8 @@ function viewPortalPeople() {
 
   // permissões por perfil
   const canMOV  = u.role==='people'||u.role==='admin'||u.role==='gestor';
-  const isAdmin = u.role==='admin'||u.role==='people';
+  const isAdmin  = u.role==='admin';
+  const isPeople = u.role==='people';
 
   return `<div class="portal-root">
     <div class="portal-inner">
@@ -2219,7 +2238,7 @@ function viewPortalPeople() {
       </div>` : ''}
 
       <!-- Grupo: Gestão CLT -->
-      ${isAdmin ? `
+      ${(isAdmin||isPeople) ? `
       <div class="portal-section">
         <div class="portal-section-header">
           <div class="portal-section-bar" style="background:#7c3aed"></div>
@@ -2231,7 +2250,7 @@ function viewPortalPeople() {
       </div>` : ''}
 
       <!-- Grupo: Jornada do Colaborador -->
-      ${isAdmin ? `
+      ${(isAdmin||isPeople) ? `
       <div class="portal-section">
         <div class="portal-section-header">
           <div class="portal-section-bar" style="background:#0369a1"></div>
@@ -2965,6 +2984,7 @@ function viewUsuarios() {
             ">
               <option value="colaborador" ${(modalU.role||'')==='colaborador'?'selected':''}>Colaborador</option>
               <option value="gestor"      ${(modalU.role||'')==='gestor'     ?'selected':''}>Gestor</option>
+              <option value="people"      ${(modalU.role||'')==='people'     ?'selected':''}>People</option>
               <option value="admin"       ${(modalU.role||'')==='admin'      ?'selected':''}>Admin</option>
             </select>
             <div id="mu-role-warn" style="display:${(modalU.role||'')==='gestor'&&!(modalU.departamento||'')?'block':'none'};font-size:11px;color:var(--warn);margin-top:4px">
