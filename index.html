@@ -26,9 +26,9 @@
   #menu-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:99}
   #menu-toggle{display:none;background:none;border:none;cursor:pointer;padding:6px;color:var(--text2)}
   @media(max-width:768px){#menu-toggle{display:flex;align-items:center;justify-content:center}}
-  #main{flex:1;overflow-y:auto;min-width:0}
-  #topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
-  #content{padding:clamp(16px,3vw,28px) clamp(16px,4vw,40px);max-width:1200px;width:100%;box-sizing:border-box}
+  #main{flex:1;min-width:0;width:100%;display:flex;flex-direction:column;overflow-y:auto}
+  #topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-shrink:0}
+  #content{padding:clamp(16px,3vw,28px) clamp(20px,4vw,40px);max-width:1200px;width:100%;box-sizing:border-box;margin:0 auto}
 
   /* Login */
   #login-screen{min-height:100vh;width:100vw;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#f0f4f1 0%,#e8ede9 50%,#f5f4f0 100%);padding:20px;position:fixed;top:0;left:0}
@@ -241,8 +241,9 @@
   @media(max-width:1280px){.portal-grid{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:960px){.portal-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:560px){.portal-grid{grid-template-columns:1fr}.portal-date{padding-left:0}.portal-inner{padding:20px 16px}}
-  /* ── App fix ── */
+  /* ── App layout fix ── */
   #app{display:flex;min-height:100vh;overflow-x:hidden}
+  .app-shell{display:flex;width:100%;min-height:100vh;overflow-x:hidden}
 </style>
 </head>
 <body>
@@ -2142,9 +2143,9 @@ function viewModuloMOV() {
   }
 
   return `
-  <div style="display:flex;min-height:100vh">
+  <div class="app-shell">
     ${sidebarMOV}
-    <div id="main" style="flex:1;overflow-y:auto">
+    <div id="main">
       <div id="topbar">
         <div class="breadcrumb" style="margin-bottom:0"><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer;color:var(--text3)">GestAus</span><span class="breadcrumb-sep">›</span><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer;color:var(--text3)">Portal</span><span class="breadcrumb-sep">›</span><span style="font-weight:500;color:var(--text2)">MOV</span></div>
         <button class="btn btn-secondary btn-sm" onclick="state.moduloAtivo=null;render()">← Portal People</button>
@@ -2441,9 +2442,9 @@ function render() {
   const viewFn = viewMap[state.view] || viewDashboard;
   const pending = getPendingDaArea(state.currentUser);
   app.innerHTML = `
-  <div style="display:flex;min-height:100vh">
+  <div class="app-shell">
     ${viewSidebar()}
-    <div id="main" style="flex:1;overflow-y:auto">
+    <div id="main">
       <div id="menu-overlay" onclick="document.getElementById('sidebar').classList.remove('open');this.style.display='none'"></div>
       <div id="topbar">
         <div style="display:flex;align-items:center;gap:8px">
