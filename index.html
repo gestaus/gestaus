@@ -244,30 +244,69 @@
   /* ── App layout fix ── */
   #app{display:flex;min-height:100vh;overflow-x:hidden}
   .app-shell{display:flex;width:100%;min-height:100vh;overflow-x:hidden}
-  /* ── Lumi Assistente ── */
-  .lumi-wrap{background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:20px 24px 18px;margin-bottom:40px;box-shadow:var(--shadow)}
-  .lumi-header{display:flex;align-items:center;gap:10px;margin-bottom:4px}
-  .lumi-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1a5c3a 0%,#2d7a52 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px}
-  .lumi-name{font-size:13px;font-weight:600;color:var(--text)}
-  .lumi-badge{font-size:9px;font-weight:600;background:var(--accent-light);color:var(--accent);padding:2px 6px;border-radius:8px;letter-spacing:.3px;text-transform:uppercase;margin-left:4px}
-  .lumi-sub{font-size:12px;color:var(--text3);margin-bottom:14px;padding-left:42px;line-height:1.5}
-  .lumi-input-row{display:flex;gap:8px;align-items:center}
-  .lumi-input{flex:1;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:inherit;font-size:13px;color:var(--text);background:var(--bg);outline:none;transition:border-color .15s}
-  .lumi-input:focus{border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px rgba(26,92,58,.07)}
-  .lumi-send{width:38px;height:38px;border-radius:9px;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s}
-  .lumi-send:hover{background:var(--accent-mid)}.lumi-send:disabled{opacity:.45;cursor:not-allowed}
-  .lumi-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
-  .lumi-chip{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface);font-size:11.5px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .13s;white-space:nowrap}
-  .lumi-chip:hover{background:var(--accent-light);border-color:var(--accent);color:var(--accent)}
-  .lumi-response{margin-top:14px;padding:12px 16px;background:linear-gradient(135deg,#f0f9f4,#eef7f1);border:1px solid #c6e6d3;border-radius:10px;font-size:13px;color:var(--text);line-height:1.6;display:none}
-  .lumi-response.visible{display:block;animation:lumi-in .18s ease}
-  .lumi-response-head{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.4px}
-  .lumi-loading{display:flex;gap:4px;align-items:center;padding:4px 0}
-  .lumi-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:lumi-pulse 1.2s ease-in-out infinite}
-  .lumi-dot:nth-child(2){animation-delay:.2s}.lumi-dot:nth-child(3){animation-delay:.4s}
-  @keyframes lumi-pulse{0%,100%{opacity:.25;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
-  @keyframes lumi-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-  @media(max-width:560px){.lumi-wrap{padding:16px}.lumi-sub{padding-left:0}.lumi-chips{gap:6px}}
+  /* ══════════════════════════════════════════
+     LUMI — Chat Assistente (Floating)
+     ══════════════════════════════════════════ */
+
+  /* Botão flutuante */
+  #lumi-fab{position:fixed;bottom:28px;right:28px;z-index:1000;width:56px;height:56px;border-radius:50%;background:#fff;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.14),0 1px 6px rgba(0,0,0,.08);padding:0;transition:transform .2s ease,box-shadow .2s ease;display:flex;align-items:center;justify-content:center}
+  #lumi-fab:hover{transform:scale(1.08);box-shadow:0 8px 28px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.1)}
+  #lumi-fab:active{transform:scale(.96)}
+  .lumi-fab-badge{position:absolute;top:2px;right:2px;width:14px;height:14px;border-radius:50%;background:#ef4444;border:2px solid #fff;display:none}
+  .lumi-fab-badge.visible{display:block}
+
+  /* Painel do chat */
+  #lumi-panel{position:fixed;bottom:96px;right:28px;z-index:999;width:360px;max-width:calc(100vw - 40px);background:#fff;border-radius:20px;box-shadow:0 8px 40px rgba(0,0,0,.14),0 2px 12px rgba(0,0,0,.08);display:none;flex-direction:column;overflow:hidden;max-height:560px;border:1px solid rgba(0,0,0,.06)}
+  #lumi-panel.open{display:flex;animation:lumi-slide-in .22s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes lumi-slide-in{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+  /* Header do chat */
+  .lumi-chat-header{background:linear-gradient(135deg,#1a3a5c 0%,#1e5fa8 100%);padding:16px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+  .lumi-chat-avatar{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid rgba(255,255,255,.25)}
+  .lumi-chat-info{flex:1;min-width:0}
+  .lumi-chat-name{font-size:15px;font-weight:600;color:#fff;letter-spacing:-.2px}
+  .lumi-chat-status{font-size:11px;color:rgba(255,255,255,.7);margin-top:1px;display:flex;align-items:center;gap:5px}
+  .lumi-online-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;flex-shrink:0}
+  .lumi-close-btn{background:rgba(255,255,255,.15);border:none;cursor:pointer;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;transition:background .15s;flex-shrink:0}
+  .lumi-close-btn:hover{background:rgba(255,255,255,.25)}
+
+  /* Mensagens */
+  .lumi-messages{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}
+  .lumi-messages::-webkit-scrollbar{width:4px}
+  .lumi-messages::-webkit-scrollbar-track{background:transparent}
+  .lumi-messages::-webkit-scrollbar-thumb{background:#e2e0d8;border-radius:4px}
+
+  /* Bolhas */
+  .lumi-bubble{display:flex;align-items:flex-end;gap:7px;animation:lumi-bubble-in .18s ease}
+  @keyframes lumi-bubble-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .lumi-bubble-avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#1a3a5c,#1e5fa8);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-bottom:2px}
+  .lumi-msg{max-width:82%;padding:10px 14px;border-radius:16px;font-size:13px;line-height:1.55;color:#1a1916}
+  .lumi-msg.bot{background:#f0f5ff;border:1px solid #dbe8ff;border-bottom-left-radius:4px}
+  .lumi-msg.user{background:#1e5fa8;color:#fff;border-bottom-right-radius:4px;margin-left:auto}
+  .lumi-bubble.user{flex-direction:row-reverse}
+  .lumi-msg.blocked{background:#fff0f0;border-color:#fecaca;color:#991b1b}
+  .lumi-msg.nav-msg{background:#f0fdf4;border-color:#bbf7d0}
+
+  /* Chips de sugestão */
+  .lumi-suggestions{padding:0 14px 10px;display:flex;flex-wrap:wrap;gap:6px}
+  .lumi-suggestion{padding:5px 11px;border-radius:16px;border:1px solid #dbe8ff;background:#f5f8ff;font-size:11.5px;font-weight:500;color:#1e5fa8;cursor:pointer;transition:all .12s;white-space:nowrap}
+  .lumi-suggestion:hover{background:#dbe8ff;border-color:#1e5fa8}
+
+  /* Input */
+  .lumi-chat-input-area{padding:10px 12px 12px;border-top:1px solid #f0efe9;flex-shrink:0;display:flex;gap:8px;align-items:center}
+  .lumi-chat-input{flex:1;padding:9px 13px;border:1.5px solid #e2e0d8;border-radius:20px;font-family:inherit;font-size:13px;color:#1a1916;background:#fafaf8;outline:none;transition:border-color .15s}
+  .lumi-chat-input:focus{border-color:#1e5fa8;background:#fff;box-shadow:0 0 0 3px rgba(30,95,168,.08)}
+  .lumi-chat-send{width:34px;height:34px;border-radius:50%;background:#1e5fa8;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s;flex-shrink:0}
+  .lumi-chat-send:hover{background:#1a5090}.lumi-chat-send:disabled{opacity:.4;cursor:not-allowed}
+
+  /* Typing indicator */
+  .lumi-typing{display:flex;align-items:flex-end;gap:7px}
+  .lumi-typing-bubble{background:#f0f5ff;border:1px solid #dbe8ff;border-bottom-left-radius:4px;padding:10px 14px;border-radius:16px;display:flex;gap:4px;align-items:center}
+  .lumi-typing-dot{width:6px;height:6px;border-radius:50%;background:#93c5fd;animation:lumi-typing-anim 1.2s ease-in-out infinite}
+  .lumi-typing-dot:nth-child(2){animation-delay:.2s}.lumi-typing-dot:nth-child(3){animation-delay:.4s}
+  @keyframes lumi-typing-anim{0%,80%,100%{transform:scale(.8);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+  @media(max-width:480px){#lumi-panel{width:calc(100vw - 24px);right:12px;bottom:84px}#lumi-fab{bottom:16px;right:16px}}
 </style>
 </head>
 <body>
@@ -720,6 +759,15 @@ const LOGO_SM = `<svg width="32" height="32" viewBox="0 0 56 56" fill="none" xml
 // ══════════════════════════════════════════
 
 // Palavras bloqueadas por segurança — dados sensíveis
+const LUMI_AVATAR_MINI = `<svg width="16" height="16" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="14" cy="11" r="7" fill="#fde8d8"/>
+  <path d="M7 10 Q7 4 14 4 Q21 4 21 10 Q21 7 18 7 Q14 5.5 10 7 Q7 7 7 10Z" fill="#4a3728"/>
+  <ellipse cx="11.5" cy="11" rx="1.1" ry="1.2" fill="#2d2520"/>
+  <ellipse cx="16.5" cy="11" rx="1.1" ry="1.2" fill="#2d2520"/>
+  <path d="M11.5 14 Q14 15.5 16.5 14" stroke="#c0725a" stroke-width="1" stroke-linecap="round" fill="none"/>
+  <path d="M8 22 Q8 18 14 18 Q20 18 20 22 L20 28 L8 28Z" fill="#1e5fa8"/>
+</svg>`;
+
 const LUMI_BLOCKED = [
   'salário','salario','remuneração','remuneracao','remuner',
   'reajuste','aumento salarial','quanto ganha','quanto recebe',
@@ -858,44 +906,128 @@ function lumiRespond(input) {
   };
 }
 
-function lumiSend(inputId, responseId, loadingId) {
-  const inputEl = document.getElementById(inputId);
-  const respEl  = document.getElementById(responseId);
-  const loadEl  = document.getElementById(loadingId);
-  const sendBtn = document.getElementById('lumi-send-btn');
-  if (!inputEl || !respEl) return;
+// ── Lumi UI — Chat flutuante ──────────────────────────────────────────────
+let lumiOpen = false;
+let lumiGreeted = false;
+
+function lumiToggle() {
+  lumiOpen = !lumiOpen;
+  const panel = document.getElementById('lumi-panel');
+  const badge = document.getElementById('lumi-fab-badge');
+  if (lumiOpen) {
+    panel.classList.add('open');
+    if (!lumiGreeted) {
+      lumiGreeted = true;
+      const nome = state.currentUser?.name?.split(' ')[0] || '';
+      setTimeout(() => {
+        lumiAddBotMsg(
+          `Olá${nome ? ', ' + nome : ''}! Sou a Lumi, assistente do GestAus. Posso te ajudar com pendências, ausências, navegação pelos módulos e muito mais. Como posso ajudar hoje?`
+        );
+      }, 180);
+    }
+    setTimeout(() => document.getElementById('lumi-input')?.focus(), 250);
+    badge.classList.remove('visible');
+  } else {
+    panel.classList.remove('open');
+  }
+}
+
+function lumiAddMsg(html, type) {
+  // type: 'bot' | 'user' | 'blocked' | 'nav'
+  const msgs = document.getElementById('lumi-messages');
+  if (!msgs) return;
+
+  const isBot = type !== 'user';
+  const wrap = document.createElement('div');
+  wrap.className = 'lumi-bubble' + (type === 'user' ? ' user' : '');
+
+  if (isBot) {
+    wrap.innerHTML = `
+      <div class="lumi-bubble-avatar">${LUMI_AVATAR_MINI}</div>
+      <div class="lumi-msg ${type === 'blocked' ? 'blocked' : type === 'nav' ? 'nav-msg' : 'bot'}">${html}</div>`;
+  } else {
+    wrap.innerHTML = `<div class="lumi-msg user">${html}</div>`;
+  }
+  msgs.appendChild(wrap);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function lumiAddBotMsg(html, type='bot') {
+  lumiAddMsg(html, type);
+}
+
+function lumiShowTyping() {
+  const msgs = document.getElementById('lumi-messages');
+  if (!msgs) return;
+  const el = document.createElement('div');
+  el.className = 'lumi-typing';
+  el.id = 'lumi-typing-indicator';
+  el.innerHTML = `
+    <div class="lumi-bubble-avatar">${LUMI_AVATAR_MINI}</div>
+    <div class="lumi-typing-bubble">
+      <div class="lumi-typing-dot"></div>
+      <div class="lumi-typing-dot"></div>
+      <div class="lumi-typing-dot"></div>
+    </div>`;
+  msgs.appendChild(el);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function lumiHideTyping() {
+  document.getElementById('lumi-typing-indicator')?.remove();
+}
+
+function lumiSendMsg() {
+  const inputEl  = document.getElementById('lumi-input');
+  const sendBtn  = document.getElementById('lumi-send-btn');
+  const suggs    = document.getElementById('lumi-suggestions');
+  if (!inputEl) return;
   const val = inputEl.value.trim();
   if (!val) return;
 
-  // Loading
-  sendBtn && (sendBtn.disabled = true);
-  loadEl && (loadEl.style.display = 'flex');
-  respEl.style.display = 'none';
-  respEl.classList.remove('error');
+  // Mostrar mensagem do usuário
+  lumiAddMsg(val, 'user');
+  inputEl.value = '';
+  sendBtn.disabled = true;
+  if (suggs) suggs.style.display = 'none';
+
+  // Typing
+  lumiShowTyping();
 
   setTimeout(() => {
+    lumiHideTyping();
     const result = lumiRespond(val);
-    loadEl && (loadEl.style.display = 'none');
-    sendBtn && (sendBtn.disabled = false);
+    sendBtn.disabled = false;
 
-    // Monta resposta
     let html = result.msg.replace(/\n/g, '<br>');
+    const tipo = result.blocked ? 'blocked' : result.nav ? 'nav' : 'bot';
+
+    // Botão de navegação manual
     if (result.nav && !result.autoNav) {
-      html += `<br><br><button class="btn btn-primary btn-sm" style="margin-top:4px" onclick="(${result.nav.toString()})()">${result.navLabel} →</button>`;
+      html += `<br><button style="margin-top:8px;display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#1e5fa8;color:white;border:none;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit" onclick="(function(){try{(${result.nav.toString()})()}catch(e){}})()">
+        ${result.navLabel} →
+      </button>`;
     }
-    respEl.innerHTML = html;
-    respEl.className = 'lumi-response visible' + (result.blocked ? ' error' : '');
-    respEl.style.display = 'block';
+
+    lumiAddBotMsg(html, tipo);
 
     if (result.autoNav && result.nav) {
-      setTimeout(() => { (result.nav)(); }, 700);
+      setTimeout(() => { try { result.nav(); } catch(e){} }, 800);
     }
-  }, 320);
+  }, 400 + Math.random() * 200);
 }
 
+// Compatibilidade: lumiSend mantida para chips antigos
+function lumiSend(inputId, responseId, loadingId) { lumiSendMsg(); }
+
 function lumiChip(text) {
+  if (!lumiOpen) lumiToggle();
   const inputEl = document.getElementById('lumi-input');
-  if (inputEl) { inputEl.value = text; lumiSend('lumi-input','lumi-response','lumi-loading'); }
+  if (inputEl) {
+    inputEl.value = text;
+    document.getElementById('lumi-send-btn').disabled = false;
+  }
+  setTimeout(() => lumiSendMsg(), 80);
 }
 
 // ══════════════════════════════════════════
@@ -1793,39 +1925,6 @@ function viewPortalPeople() {
         </div>
       </div>
       <div class="portal-date">${hoje}</div>
-
-      <!-- Lumi Assistente -->
-      <div class="lumi-wrap" id="lumi-block">
-        <div class="lumi-header">
-          <div class="lumi-avatar">✦</div>
-          <div>
-            <span class="lumi-name">Lumi</span>
-            <span class="lumi-badge">Assistente GestAus</span>
-          </div>
-        </div>
-        <div class="lumi-sub">Posso te ajudar a encontrar informações, navegar pelos módulos ou iniciar ações.</div>
-        <div class="lumi-input-row">
-          <input id="lumi-input" class="lumi-input" type="text" placeholder="Como posso ajudar?"
-            onkeydown="if(event.key==='Enter')lumiSend('lumi-input','lumi-response','lumi-loading')"
-            oninput="document.getElementById('lumi-send-btn').disabled=!this.value.trim()">
-          <button id="lumi-send-btn" class="lumi-send" onclick="lumiSend('lumi-input','lumi-response','lumi-loading')" disabled title="Enviar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
-        </div>
-        <div class="lumi-chips">
-          <span class="lumi-chip" onclick="lumiChip('Ver pendências')">⏳ Ver pendências</span>
-          <span class="lumi-chip" onclick="lumiChip('Ver ausências da semana')">📅 Ausências da semana</span>
-          <span class="lumi-chip" onclick="lumiChip('Criar solicitação MOV')">➕ Nova solicitação MOV</span>
-          <span class="lumi-chip" onclick="lumiChip('Abrir calendário')">🗓 Calendário</span>
-          <span class="lumi-chip" onclick="lumiChip('Ir para aprovações')">✅ Aprovações</span>
-        </div>
-        <div class="lumi-response" id="lumi-response" style="display:none">
-          <div class="lumi-response-head">✦ Lumi</div>
-        </div>
-        <div id="lumi-loading" class="lumi-loading" style="display:none;margin-top:12px">
-          <div class="lumi-dot"></div><div class="lumi-dot"></div><div class="lumi-dot"></div>
-        </div>
-      </div>
 
       <!-- Grupo: Gestão de Pessoas -->
       <div class="portal-section">
@@ -2734,5 +2833,98 @@ sb.auth.onAuthStateChange(async (event, session) => {
   }
 });
 </script>
+
+<!-- ══ LUMI — Chat Assistente Flutuante ══ -->
+
+<!-- Botão flutuante -->
+<button id="lumi-fab" onclick="lumiToggle()" title="Lumi — Assistente GestAus" aria-label="Abrir assistente Lumi">
+  <svg width="36" height="36" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="14" cy="11" r="7" fill="#fde8d8"/>
+  <path d="M7 10 Q7 4 14 4 Q21 4 21 10 Q21 7 18 7 Q14 5.5 10 7 Q7 7 7 10Z" fill="#4a3728"/>
+  <path d="M7 10 Q5.5 14 7.5 16 Q7 12 9 11Z" fill="#4a3728"/>
+  <path d="M21 10 Q22.5 14 20.5 16 Q21 12 19 11Z" fill="#4a3728"/>
+  <ellipse cx="11.5" cy="11" rx="1.1" ry="1.2" fill="#2d2520"/>
+  <ellipse cx="16.5" cy="11" rx="1.1" ry="1.2" fill="#2d2520"/>
+  <circle cx="12" cy="10.5" r="0.4" fill="white"/>
+  <circle cx="17" cy="10.5" r="0.4" fill="white"/>
+  <ellipse cx="10.5" cy="13" rx="1.2" ry="0.7" fill="#f4a4a4" opacity="0.5"/>
+  <ellipse cx="17.5" cy="13" rx="1.2" ry="0.7" fill="#f4a4a4" opacity="0.5"/>
+  <path d="M11.5 14 Q14 15.5 16.5 14" stroke="#c0725a" stroke-width="1" stroke-linecap="round" fill="none"/>
+  <path d="M8 22 Q8 18 14 18 Q20 18 20 22 L20 28 L8 28Z" fill="#1e5fa8"/>
+  <path d="M11.5 18 L14 20.5 L16.5 18" stroke="white" stroke-width="1" fill="none" opacity="0.6"/>
+</svg>
+  <span class="lumi-fab-badge" id="lumi-fab-badge"></span>
+</button>
+
+<!-- Painel do chat -->
+<div id="lumi-panel" role="dialog" aria-label="Lumi — Assistente GestAus">
+
+  <!-- Header -->
+  <div class="lumi-chat-header">
+    <div class="lumi-chat-avatar">
+      <svg width="32" height="32" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Rosto -->
+  <circle cx="14" cy="11" r="7" fill="#fde8d8"/>
+  <!-- Cabelo -->
+  <path d="M7 10 Q7 4 14 4 Q21 4 21 10 Q21 7 18 7 Q14 5.5 10 7 Q7 7 7 10Z" fill="#4a3728"/>
+  <path d="M7 10 Q5.5 14 7.5 16 Q7 12 9 11Z" fill="#4a3728"/>
+  <path d="M21 10 Q22.5 14 20.5 16 Q21 12 19 11Z" fill="#4a3728"/>
+  <!-- Franja -->
+  <path d="M9 8 Q11 6.5 14 6.5 Q17 6.5 19 8 Q17 7.5 14 7.5 Q11 7.5 9 8Z" fill="#3d2e22"/>
+  <!-- Olhos -->
+  <ellipse cx="11.5" cy="11" rx="1.1" ry="1.2" fill="#2d2520"/>
+  <ellipse cx="16.5" cy="11" rx="1.1" ry="1.2" fill="#2d2520"/>
+  <!-- Reflexo nos olhos -->
+  <circle cx="12" cy="10.5" r="0.4" fill="white"/>
+  <circle cx="17" cy="10.5" r="0.4" fill="white"/>
+  <!-- Bochechas -->
+  <ellipse cx="10.5" cy="13" rx="1.2" ry="0.7" fill="#f4a4a4" opacity="0.5"/>
+  <ellipse cx="17.5" cy="13" rx="1.2" ry="0.7" fill="#f4a4a4" opacity="0.5"/>
+  <!-- Sorriso -->
+  <path d="M11.5 14 Q14 15.5 16.5 14" stroke="#c0725a" stroke-width="1" stroke-linecap="round" fill="none"/>
+  <!-- Corpo -->
+  <path d="M8 22 Q8 18 14 18 Q20 18 20 22 L20 28 L8 28Z" fill="#1e5fa8"/>
+  <!-- Gola -->
+  <path d="M11.5 18 L14 20.5 L16.5 18" stroke="white" stroke-width="1" fill="none" opacity="0.6"/>
+</svg>
+    </div>
+    <div class="lumi-chat-info">
+      <div class="lumi-chat-name">Lumi</div>
+      <div class="lumi-chat-status">
+        <span class="lumi-online-dot"></span>
+        Assistente do GestAus
+      </div>
+    </div>
+    <button class="lumi-close-btn" onclick="lumiToggle()" aria-label="Fechar">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <!-- Mensagens -->
+  <div class="lumi-messages" id="lumi-messages"></div>
+
+  <!-- Sugestões -->
+  <div class="lumi-suggestions" id="lumi-suggestions">
+    <span class="lumi-suggestion" onclick="lumiChip('Ver pendências')">⏳ Pendências</span>
+    <span class="lumi-suggestion" onclick="lumiChip('Ver ausências da semana')">📅 Esta semana</span>
+    <span class="lumi-suggestion" onclick="lumiChip('Criar solicitação MOV')">➕ Novo MOV</span>
+    <span class="lumi-suggestion" onclick="lumiChip('Abrir calendário')">🗓 Calendário</span>
+    <span class="lumi-suggestion" onclick="lumiChip('Ir para aprovações')">✅ Aprovações</span>
+  </div>
+
+  <!-- Input -->
+  <div class="lumi-chat-input-area">
+    <input id="lumi-input" class="lumi-chat-input" type="text" placeholder="Como posso ajudar?"
+      onkeydown="if(event.key==='Enter')lumiSendMsg()"
+      oninput="document.getElementById('lumi-send-btn').disabled=!this.value.trim()"
+      autocomplete="off">
+    <button id="lumi-send-btn" class="lumi-chat-send" onclick="lumiSendMsg()" disabled aria-label="Enviar">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
+
+</div>
+<!-- ══ /LUMI ══ -->
+
 </body>
 </html>
