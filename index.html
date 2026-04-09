@@ -1031,17 +1031,17 @@ function viewDashboard() {
       <div class="page-desc">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${meuDept}</div></div>
       <button class="btn btn-primary" onclick="state.view='nova';render()">+ Nova solicitação</button>
     </div>
-    \${pending>0||criticos>0?\`
+    ${pending>0||criticos>0?`
     <div class="attention-block">
       <div class="attention-title">⚠ Requer atenção</div>
-      \${pending>0?\`<div class="attention-item"><span style="font-size:12px">\${pending} ausência\${pending!==1?'s':''} aguardando sua aprovação</span><button class="btn btn-secondary btn-sm" onclick="state.view='aprovacoes';render()">Aprovar →</button></div>\`:''}
-      \${criticos>0?\`<div class="attention-item"><span style="font-size:12px">\${criticos} prestador\${criticos!==1?'es':''} com limite ≥90% do ciclo</span><button class="btn btn-secondary btn-sm" onclick="state.view='equipe';render()">Ver equipe →</button></div>\`:''}
-    </div>\`:''}
+      ${pending>0?`<div class="attention-item"><span style="font-size:12px">${pending} ausência${pending!==1?'s':''} aguardando sua aprovação</span><button class="btn btn-secondary btn-sm" onclick="state.view='aprovacoes';render()">Aprovar →</button></div>`:''}
+      ${criticos>0?`<div class="attention-item"><span style="font-size:12px">${criticos} prestador${criticos!==1?'es':''} com limite ≥90% do ciclo</span><button class="btn btn-secondary btn-sm" onclick="state.view='equipe';render()">Ver equipe →</button></div>`:''}
+    </div>`:''}
     <div class="stat-grid">
-      <div class="stat-card"><div class="stat-label">Equipe</div><div class="stat-value stat-blue">\${equipe.length+1}</div><div class="stat-sub">colaboradores no departamento</div></div>
-      <div class="stat-card"><div class="stat-label">Pendentes</div><div class="stat-value \${pending>0?'stat-amber':'stat-green'}">\${pending}</div><div class="stat-sub">aguardando sua decisão</div></div>
-      <div class="stat-card"><div class="stat-label">Próximas ausências</div><div class="stat-value stat-blue">\${proximas.length}</div><div class="stat-sub">agendadas na equipe</div></div>
-      <div class="stat-card"><div class="stat-label">Limite crítico</div><div class="stat-value \${criticos>0?'stat-red':'stat-green'}">\${criticos}</div><div class="stat-sub">prestadores ≥90% do limite</div></div>
+      <div class="stat-card"><div class="stat-label">Equipe</div><div class="stat-value stat-blue">${equipe.length+1}</div><div class="stat-sub">colaboradores no departamento</div></div>
+      <div class="stat-card"><div class="stat-label">Pendentes</div><div class="stat-value ${pending>0?'stat-amber':'stat-green'}">${pending}</div><div class="stat-sub">aguardando sua decisão</div></div>
+      <div class="stat-card"><div class="stat-label">Próximas ausências</div><div class="stat-value stat-blue">${proximas.length}</div><div class="stat-sub">agendadas na equipe</div></div>
+      <div class="stat-card"><div class="stat-label">Limite crítico</div><div class="stat-value ${criticos>0?'stat-red':'stat-green'}">${criticos}</div><div class="stat-sub">prestadores ≥90% do limite</div></div>
     </div>
     ${pending>0?`<div class="alert alert-warn" style="display:flex;align-items:center;justify-content:space-between"><span>⚠️ <strong>${pending}</strong> ausência(s) aguardando aprovação.</span><button class="btn btn-secondary btn-sm" onclick="state.view='aprovacoes';render()">Revisar agora →</button></div>`:`<div class="alert alert-success">✅ Nenhuma ausência registrada pendente de aprovação.</div>`}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
