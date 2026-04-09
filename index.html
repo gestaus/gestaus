@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GestAus — Gestão de Disponibilidade</title>
+<title>GestAus — Portal People · WAP | WAAW by Alok</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -22,13 +22,13 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
   #app{display:flex;min-height:100vh}
-  #sidebar{width:200px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;min-width:0}
+  #sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;min-width:0}
   #menu-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:99}
   #menu-toggle{display:none;background:none;border:none;cursor:pointer;padding:6px;color:var(--text2)}
   @media(max-width:768px){#menu-toggle{display:flex;align-items:center;justify-content:center}}
-  #main{flex:1;overflow-y:auto}
-  #topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
-  #content{padding:clamp(12px,3vw,24px);max-width:960px;width:100%;box-sizing:border-box}
+  #main{flex:1;overflow-y:auto;min-width:0}
+  #topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+  #content{padding:clamp(16px,3vw,28px) clamp(16px,4vw,40px);max-width:1200px;width:100%;box-sizing:border-box}
 
   /* Login */
   #login-screen{min-height:100vh;width:100vw;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#f0f4f1 0%,#e8ede9 50%,#f5f4f0 100%);padding:20px;position:fixed;top:0;left:0}
@@ -187,21 +187,21 @@
   }
   @media(max-width:1024px){
     .stat-grid{grid-template-columns:repeat(2,1fr)}
-    #content{padding:16px 20px}
+    #content{padding:20px 24px}
   }
   @media(max-width:900px){
     .stat-grid{grid-template-columns:repeat(2,1fr)}
     .form-row{grid-template-columns:1fr}
-    #content{padding:14px 16px}
+    #content{padding:16px 20px}
   }
   @media(max-width:768px){
     #sidebar{position:fixed;left:-220px;top:0;height:100vh;z-index:100;transition:left .25s;box-shadow:none}
     #sidebar.open{left:0;box-shadow:4px 0 20px rgba(0,0,0,.12)}
     #menu-overlay{display:block!important}
-    #topbar{padding:0 12px}
+    #topbar{padding:0 16px}
     .stat-grid{grid-template-columns:repeat(2,1fr)}
     .form-row{grid-template-columns:1fr}
-    #content{padding:12px}
+    #content{padding:14px 16px}
     .modal{width:calc(100vw - 32px)!important;max-width:100%!important;padding:20px 16px}
     .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
   }
@@ -216,8 +216,17 @@
   @media(max-width:480px){
     .stat-grid{grid-template-columns:1fr}
     .form-row{grid-template-columns:1fr}
-    #content{padding:10px}
+    #content{padding:12px}
   }
+  /* ── Portal responsive ── */
+  @media(max-width:900px){
+    .portal-mods-grid{grid-template-columns:repeat(2,1fr)!important}
+  }
+  @media(max-width:560px){
+    .portal-mods-grid{grid-template-columns:1fr!important}
+  }
+  /* ── App layout fix ── */
+  #app{display:flex;min-height:100vh;overflow-x:hidden}
 </style>
 </head>
 <body>
@@ -699,7 +708,7 @@ function viewLogin() {
       </div>
       <div class="login-footer">© ${new Date().getFullYear()} GestAus · Portal People · Uso interno</div>
       <div style="margin-top:10px;font-size:10px;color:var(--text3);text-align:center;max-width:380px;line-height:1.5;opacity:0.8">
-        Este sistema é utilizado para gestão de disponibilidade de prestadores de serviço (PJ), não caracterizando vínculo empregatício.
+        Plataforma corporativa de gestão interna da WAP | WAAW by Alok.
       </div>
     </div>
   </div>`;
@@ -754,7 +763,7 @@ function viewSidebar() {
         </div>
         <div>
           <div class="brand-name">GestAus</div>
-          <div class="brand-sub">Disponibilidade PJ</div>
+          <div class="brand-sub">Portal People</div>
         </div>
       </div>
     </div>
@@ -1521,17 +1530,17 @@ function viewPortalPeople() {
   // ── helpers ──────────────────────────────────────────────────────────────
   const modCard = (id, icon, title, desc, badge, color, available) => `
     <div onclick="${available ? `state.moduloAtivo='${id}';state.view='dashboard';render()` : ''}"
-      style="background:var(--surface);border:1.5px solid ${available?'var(--border)':'var(--border)'};border-radius:12px;padding:22px 20px;cursor:${available?'pointer':'default'};transition:all .15s;position:relative;overflow:hidden;opacity:${available?1:.65}"
-      onmouseover="${available?`this.style.borderColor='${color}';this.style.transform='translateY(-2px)'`:''}"
-      onmouseout="${available?`this.style.borderColor='var(--border)';this.style.transform='translateY(0)'`:''}">
-      <div style="width:38px;height:38px;border-radius:9px;background:${color}18;display:flex;align-items:center;justify-content:center;margin-bottom:14px;border:1px solid ${color}30">
+      style="background:var(--surface);border:1.5px solid ${available?'var(--border)':'var(--border)'};border-radius:14px;padding:28px 24px 24px;cursor:${available?'pointer':'default'};transition:all .18s;position:relative;overflow:hidden;opacity:${available?1:.6};min-height:160px;display:flex;flex-direction:column"
+      onmouseover="${available?`this.style.borderColor='${color}';this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.08)'`:''}"
+      onmouseout="${available?`this.style.borderColor='var(--border)';this.style.transform='translateY(0)';this.style.boxShadow='none'`:''}">
+      <div style="width:44px;height:44px;border-radius:10px;background:${color}18;display:flex;align-items:center;justify-content:center;margin-bottom:16px;border:1px solid ${color}30;flex-shrink:0">
         ${icon}
       </div>
-      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">${title}</div>
-      <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:${badge||!available?'10px':'0'}">${desc}</div>
-      ${badge ? `<span style="display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;background:#fef3c7;color:#92400e">${badge} pendente${badge>1?'s':''}</span>` : ''}
-      ${!available ? `<span style="display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:500;background:var(--surface2);color:var(--text3)">Em breve</span>` : ''}
-      ${available ? `<div style="position:absolute;bottom:14px;right:14px;font-size:11px;color:${color};font-weight:500;opacity:.8">Acessar →</div>` : ''}
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;line-height:1.3">${title}</div>
+      <div style="font-size:12px;color:var(--text3);line-height:1.55;flex:1;margin-bottom:${badge||!available?'12px':'0'}">${desc}</div>
+      ${badge ? `<span style="display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;background:#fef3c7;color:#92400e">${badge} pendente${badge>1?'s':''}</span>` : ''}
+      ${!available ? `<span style="display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:500;background:var(--surface2);color:var(--text3)">Em breve</span>` : ''}
+      ${available ? `<div style="position:absolute;bottom:16px;right:16px;font-size:11px;color:${color};font-weight:600;opacity:.8">Acessar →</div>` : ''}
     </div>`;
 
   // ── ícones ────────────────────────────────────────────────────────────────
@@ -1546,29 +1555,29 @@ function viewPortalPeople() {
   const canMOV  = u.role==='people'||u.role==='admin'||u.role==='gestor';
   const isAdmin = u.role==='admin'||u.role==='people';
 
-  return `<div style="min-height:100vh;background:var(--bg);padding:clamp(20px,5vw,40px) clamp(16px,4vw,32px)">
-    <div style="max-width:860px;margin:0 auto;width:100%;box-sizing:border-box;padding:0 4px">
+  return `<div style="min-height:100vh;background:var(--bg);padding:clamp(24px,5vw,48px) clamp(20px,5vw,48px)">
+    <div style="max-width:1280px;margin:0 auto;width:100%;box-sizing:border-box">
 
       <!-- Header -->
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-        <div style="width:32px;height:32px;border-radius:8px;background:#1a5c3a;display:flex;align-items:center;justify-content:center">
-          <svg width="16" height="16" viewBox="0 0 56 56" fill="none"><rect x="13" y="16" width="30" height="26" rx="4" fill="none" stroke="white" stroke-width="2.5"/><line x1="13" y1="23" x2="43" y2="23" stroke="white" stroke-width="2"/><line x1="20" y1="13" x2="20" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><line x1="36" y1="13" x2="36" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><polyline points="21,33 26,38 35,29" stroke="#7ee8a2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <div style="width:36px;height:36px;border-radius:9px;background:#1a5c3a;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="18" height="18" viewBox="0 0 56 56" fill="none"><rect x="13" y="16" width="30" height="26" rx="4" fill="none" stroke="white" stroke-width="2.5"/><line x1="13" y1="23" x2="43" y2="23" stroke="white" stroke-width="2"/><line x1="20" y1="13" x2="20" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><line x1="36" y1="13" x2="36" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><polyline points="21,33 26,38 35,29" stroke="#7ee8a2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
         </div>
         <div>
-          <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px">GestAus · Portal</div>
-          <div style="font-size:18px;font-weight:600;color:var(--text);letter-spacing:-.3px">Olá, ${u.name.split(' ')[0]} 👋</div>
+          <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px">GestAus · Portal People</div>
+          <div style="font-size:22px;font-weight:600;color:var(--text);letter-spacing:-.4px">Olá, ${u.name.split(' ')[0]} 👋</div>
         </div>
       </div>
-      <div style="font-size:12px;color:var(--text3);margin-bottom:32px">${hoje}</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:40px;padding-left:48px">${hoje}</div>
 
-      <!-- Grupo: Gestão de Prestadores (PJ) -->
-      <div style="margin-bottom:28px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-          <div style="width:3px;height:16px;background:#1a5c3a;border-radius:2px"></div>
-          <span style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.7px">Gestão de Prestadores · PJ</span>
+      <!-- Grupo: Gestão de Pessoas & Ausências -->
+      <div style="margin-bottom:36px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <div style="width:3px;height:18px;background:#1a5c3a;border-radius:2px"></div>
+          <span style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.7px">Gestão de Pessoas</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
-          ${modCard('ausencias', icoAus, 'Disponibilidade PJ', 'Ausências programadas, aprovações e confirmações.', pendentes, '#1a5c3a', true)}
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px">
+          ${modCard('ausencias', icoAus, 'Disponibilidade', 'Ausências programadas, aprovações e confirmações.', pendentes, '#1a5c3a', true)}
           ${modCard('contratos', icoContr, 'Contratos PJ', 'Gestão de contratos e vigências dos prestadores.', 0, '#1a5c3a', false)}
           ${modCard('nf', icoNF, 'Notas Fiscais', 'Emissão e controle de notas fiscais dos prestadores.', 0, '#1a5c3a', false)}
         </div>
@@ -1576,44 +1585,44 @@ function viewPortalPeople() {
 
       <!-- Grupo: Movimentação de Pessoas -->
       ${canMOV ? `
-      <div style="margin-bottom:28px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-          <div style="width:3px;height:16px;background:#1e40af;border-radius:2px"></div>
+      <div style="margin-bottom:36px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <div style="width:3px;height:18px;background:#1e40af;border-radius:2px"></div>
           <span style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.7px">Movimentação de Pessoas</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px">
           ${modCard('mov', icoMOV, 'MOV', 'Requisições, desligamentos e alterações de cargo/área.', movPendentes, '#1e40af', true)}
         </div>
       </div>` : ''}
 
       <!-- Grupo: Gestão CLT -->
       ${isAdmin ? `
-      <div style="margin-bottom:28px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-          <div style="width:3px;height:16px;background:#7c3aed;border-radius:2px"></div>
+      <div style="margin-bottom:36px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <div style="width:3px;height:18px;background:#7c3aed;border-radius:2px"></div>
           <span style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.7px">Gestão CLT</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px">
           ${modCard('clt', icoCLT, 'Gestão CLT', 'Férias, folgas e controle de jornada de colaboradores CLT.', 0, '#7c3aed', false)}
         </div>
       </div>` : ''}
 
       <!-- Grupo: Jornada do Colaborador -->
       ${isAdmin ? `
-      <div style="margin-bottom:28px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-          <div style="width:3px;height:16px;background:#0369a1;border-radius:2px"></div>
+      <div style="margin-bottom:36px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <div style="width:3px;height:18px;background:#0369a1;border-radius:2px"></div>
           <span style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.7px">Jornada do Colaborador</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px">
           ${modCard('onboarding', icoOnb, 'Onboarding', 'Integração de novos colaboradores e prestadores.', 0, '#0369a1', false)}
           ${modCard('offboarding', icoOnb, 'Offboarding', 'Processo de desligamento e encerramento de jornada.', 0, '#0369a1', false)}
         </div>
       </div>` : ''}
 
       <!-- Rodapé -->
-      <div style="text-align:center;font-size:11px;color:var(--text3);padding-top:20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:12px">
-        <span>GestAus · Portal People · ${new Date().getFullYear()}</span>
+      <div style="text-align:center;font-size:11px;color:var(--text3);padding-top:24px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:12px">
+        <span>GestAus · Portal People · WAP | WAAW by Alok · ${new Date().getFullYear()}</span>
         <span style="opacity:.3">·</span>
         <span onclick="logout()" style="cursor:pointer;color:var(--danger);opacity:.7">Sair</span>
       </div>
