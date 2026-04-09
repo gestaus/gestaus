@@ -22,10 +22,10 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
   #app{display:flex;min-height:100vh}
-  #sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+  #sidebar{width:200px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;min-width:0}
   #main{flex:1;overflow-y:auto}
-  #topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
-  #content{padding:28px;max-width:1100px}
+  #topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+  #content{padding:20px 24px;max-width:960px;width:100%}
 
   /* Login */
   #login-screen{min-height:100vh;width:100vw;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#f0f4f1 0%,#e8ede9 50%,#f5f4f0 100%);padding:20px;position:fixed;top:0;left:0}
@@ -94,10 +94,10 @@
   .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
   .card-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px}
   .card-sub{font-size:12px;color:var(--text3)}
-  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
-  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
   .stat-label{font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
-  .stat-value{font-size:28px;font-weight:600;letter-spacing:-1px;line-height:1}
+  .stat-value{font-size:24px;font-weight:600;letter-spacing:-0.5px;line-height:1}
   .stat-sub{font-size:11px;color:var(--text3);margin-top:4px}
   .stat-green{color:var(--accent)}.stat-red{color:var(--danger)}.stat-amber{color:var(--warn)}.stat-blue{color:var(--info)}
 
@@ -135,7 +135,7 @@
 
   /* Misc */
   .page-header{margin-bottom:24px}
-  .page-title{font-size:20px;font-weight:600;letter-spacing:-.4px}
+  .page-title{font-size:18px;font-weight:600;letter-spacing:-.3px}
   .page-desc{font-size:13px;color:var(--text3);margin-top:3px}
   .divider{border:none;border-top:1px solid var(--border);margin:20px 0}
   .empty-state{text-align:center;padding:48px 20px;color:var(--text3)}
@@ -167,7 +167,20 @@
   .cal-day.conflict.has-event{background:#fef3c7}
   .cal-num{margin-bottom:2px}
   .cal-dot{width:4px;height:4px;border-radius:50%;margin:1px auto}
-  @media(max-width:768px){#sidebar{display:none}.stat-grid{grid-template-columns:repeat(2,1fr)}.form-row{grid-template-columns:1fr}}
+  @media(max-width:900px){
+    .stat-grid{grid-template-columns:repeat(2,1fr)}
+    .form-row{grid-template-columns:1fr}
+  }
+  @media(max-width:768px){
+    #sidebar{display:none}
+    .stat-grid{grid-template-columns:repeat(2,1fr)}
+    .form-row{grid-template-columns:1fr}
+    #content{padding:14px 16px}
+  }
+  @media(max-width:600px){
+    .stat-grid{grid-template-columns:1fr}
+    .modal{padding:20px 16px}
+  }
 </style>
 </head>
 <body>
@@ -212,6 +225,14 @@ let state = {
   adminDashUser: '', adminDashDept: '', adminDashStatus: '', adminDashTipo: '',
   aiLoading: false, aiResponse: '',
   peopleSelected: [], peopleFiltroUser: '', peopleFiltroInicio: '', peopleFiltroFim: '',
+  // portal people
+  moduloAtivo: null,       // null = portal | 'ausencias' | 'mov'
+  // módulo MOV
+  movView: 'dashboard',    // dashboard | nova | listagem | historico
+  movModal: null,
+  movSolicitacoes: [],     // dados em memória (mock até backend)
+  movFiltroStatus: '',
+  movFiltroTipo: '',
 };
 
 const DEPARTAMENTOS = ['Tecnologia','People','Operações','Produto','Financeiro','Jurídico','Comercial'];
@@ -448,6 +469,8 @@ async function login() {
   state.currentUser = profile;
   await loadAllData();
   state.loginLoading = false;
+  // people entra no portal de módulos
+  state.moduloAtivo = (profile.role === 'people') ? null : 'ausencias';
   state.view = 'dashboard';
   render();
 }
@@ -846,7 +869,7 @@ function viewDashboard() {
         <div class="stat-card"><div class="stat-label">Sem ausências registradas</div><div class="stat-value ${semFerias.length>0?'stat-amber':'stat-green'}">${semFerias.length}</div><div class="stat-sub">colaborador(es)</div></div>
       </div>
       ${alertas.length>0?alertas.map(a=>`<div class="alert alert-${a.tipo}" style="margin-bottom:8px">${a.tipo==='warn'?'⚠️':'ℹ️'} ${a.msg}</div>`).join(''):`<div class="alert alert-success" style="margin-bottom:16px">✅ Nenhum alerta crítico.</div>`}
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
         <div class="card">
           <div class="card-title" style="margin-bottom:14px">Saúde por departamento</div>
           <div class="table-wrap" style="border:none"><table style="font-size:12px">
@@ -956,7 +979,7 @@ function viewDashboard() {
       <div class="stat-card"><div class="stat-label">Limite crítico</div><div class="stat-value ${criticos>0?'stat-red':'stat-green'}">${criticos}</div><div class="stat-sub">prestador(es) ≥90% do limite</div></div>
     </div>
     ${pending>0?`<div class="alert alert-warn" style="display:flex;align-items:center;justify-content:space-between"><span>⚠️ <strong>${pending}</strong> ausência(s) aguardando aprovação.</span><button class="btn btn-secondary btn-sm" onclick="state.view='aprovacoes';render()">Revisar agora →</button></div>`:`<div class="alert alert-success">✅ Nenhuma ausência registrada pendente de aprovação.</div>`}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
       <div class="card">
         <div class="card-title" style="margin-bottom:14px">Minha situação</div>
         <div class="flex-between" style="margin-bottom:6px"><span style="font-size:13px;color:var(--text2)">Limite disponível</span><strong style="font-size:18px;color:var(--accent)">${meuSaldo.saldo}d</strong></div>
@@ -1076,7 +1099,7 @@ function viewNova() {
     + '<div class="page-title">Nova Solicitação de Ausência</div>'
     + '<div class="page-desc">Ausência programada</div>'
     + '</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start">'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;align-items:start">'
 
     + '<div class="card">'
     /* tipo fixo internamente como 'Férias' — sem exposição na UI */
@@ -1438,6 +1461,307 @@ function viewPeople() {
   </div>`;
 }
 
+// ══════════════════════════════════════════
+// PORTAL PEOPLE
+// ══════════════════════════════════════════
+function viewPortalPeople() {
+  const u = state.currentUser;
+  const pendentes = state.solicitacoes.filter(s => s.status === 'Pendente').length;
+  const movPendentes = state.movSolicitacoes.filter(s => s.status === 'Pendente').length;
+
+  const cardMod = (id, icon, titulo, desc, badge, cor, ativo) => `
+    <div onclick="state.moduloAtivo='${id}';state.view='dashboard';render()"
+      style="background:var(--surface);border:1.5px solid ${ativo?'var(--accent)':'var(--border)'};border-radius:14px;padding:28px 24px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden"
+      onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-2px)'"
+      onmouseout="this.style.borderColor='${ativo?'var(--accent)':'var(--border)'}';this.style.transform='translateY(0)'">
+      <div style="width:44px;height:44px;border-radius:10px;background:${cor};display:flex;align-items:center;justify-content:center;margin-bottom:16px">
+        ${icon}
+      </div>
+      <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">${titulo}</div>
+      <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:${badge?'14px':'0'}">${desc}</div>
+      ${badge ? `<span class="badge badge-warn" style="font-size:11px">${badge} pendente${badge>1?'s':''}</span>` : ''}
+      <div style="position:absolute;bottom:16px;right:16px;font-size:11px;color:var(--accent);font-weight:500">Acessar →</div>
+    </div>`;
+
+  const iconAus = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/></svg>';
+  const iconMov = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="23 21 23 19 19 19"/><polyline points="23 15 19 19 23 23"/></svg>';
+
+  return `
+  <div style="min-height:100vh;background:var(--bg);padding:40px 32px">
+    <div style="max-width:800px;margin:0 auto">
+
+      <!-- Header do portal -->
+      <div style="margin-bottom:40px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+          <div style="width:36px;height:36px;border-radius:9px;background:var(--accent);display:flex;align-items:center;justify-content:center">
+            <svg width="18" height="18" viewBox="0 0 56 56" fill="none"><rect x="13" y="16" width="30" height="26" rx="4" fill="none" stroke="white" stroke-width="2.5"/><line x1="13" y1="23" x2="43" y2="23" stroke="white" stroke-width="2"/><line x1="20" y1="13" x2="20" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><line x1="36" y1="13" x2="36" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><polyline points="21,33 26,38 35,29" stroke="#7ee8a2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px">Portal People</div>
+            <div style="font-size:20px;font-weight:600;color:var(--text);letter-spacing:-.3px">Olá, ${u.name.split(' ')[0]} 👋</div>
+          </div>
+        </div>
+        <div style="font-size:13px;color:var(--text3)">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · Selecione um módulo para continuar</div>
+      </div>
+
+      <!-- Grid de módulos -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:32px">
+        ${cardMod('ausencias', iconAus, 'Gestão de Ausências PJ',
+          'Controle de ausências programadas, aprovações e confirmações da equipe PJ.',
+          pendentes, '#1a5c3a', false)}
+        ${cardMod('mov', iconMov, 'Movimentação de Pessoas',
+          'Abertura de vagas, movimentações de área, mudanças de gestor e outras solicitações de RH.',
+          movPendentes, '#1e40af', false)}
+      </div>
+
+      <!-- Rodapé discreto -->
+      <div style="text-align:center;font-size:11px;color:var(--text3);padding-top:20px;border-top:1px solid var(--border)">
+        GestAus · Portal People · ${new Date().getFullYear()}
+        <span style="margin:0 8px">·</span>
+        <span onclick="logout()" style="cursor:pointer;color:var(--danger)">Sair</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════
+// MÓDULO MOV — Movimentação de Pessoas
+// ══════════════════════════════════════════
+const MOV_TIPOS = ['Abertura de vaga','Movimentação de área','Mudança de gestor','Outros'];
+const MOV_STATUS_MAP = { Pendente:'badge-pending', 'Em análise':'badge-warn', Aprovada:'badge-approved', Recusada:'badge-rejected', Concluída:'badge-done' };
+
+function criarMovSolicitacao(form) {
+  if (!form.tipo || !form.descricao.trim()) { showToast('Tipo e descrição são obrigatórios', 'error'); return; }
+  state.movSolicitacoes.push({
+    id: Date.now(),
+    tipo: form.tipo,
+    descricao: form.descricao,
+    colaborador: form.colaborador || '',
+    status: 'Pendente',
+    obs: '',
+    criadoEm: new Date().toISOString().slice(0,10),
+    criadoPor: state.currentUser.id,
+  });
+  state.movView = 'listagem';
+  showToast('Solicitação de movimentação criada ✓');
+  render();
+}
+
+function viewModuloMOV() {
+  const u = state.currentUser;
+  const pendentes = state.movSolicitacoes.filter(s => s.status === 'Pendente').length;
+
+  // ── Sidebar MOV ──
+  const sidebarMOV = `
+  <div id="sidebar">
+    <div class="sidebar-brand">
+      <div style="display:flex;align-items:center;gap:9px">
+        <div style="width:26px;height:26px;border-radius:7px;background:#1e40af;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="23 21 23 19 19 19"/><polyline points="23 15 19 19 23 23"/></svg>
+        </div>
+        <div>
+          <div class="brand-name">MOV</div>
+          <div class="brand-sub">Movimentação de Pessoas</div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="avatar" style="${u.avatar_url?'background:none;padding:0;overflow:hidden;border-radius:6px':''}">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px">`:u.avatar||u.name.slice(0,2).toUpperCase()}</div>
+      <div style="min-width:0">
+        <div class="user-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.name}</div>
+        <div class="user-role">People</div>
+      </div>
+    </div>
+    <nav style="overflow-y:auto;flex:1">
+      <div class="nav-section">Módulo MOV</div>
+      <div class="nav-item ${state.movView==='dashboard'?'active':''}" onclick="state.movView='dashboard';render()">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+        <span>Dashboard</span>
+      </div>
+      <div class="nav-item ${state.movView==='nova'?'active':''}" onclick="state.movView='nova';render()">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></span>
+        <span>Nova Solicitação</span>
+      </div>
+      <div class="nav-item ${state.movView==='listagem'?'active':''}" onclick="state.movView='listagem';render()">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span>
+        <span>Solicitações</span>
+        ${pendentes>0?`<span class="nav-badge">${pendentes}</span>`:''}
+      </div>
+      <div class="nav-item ${state.movView==='historico'?'active':''}" onclick="state.movView='historico';render()">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+        <span>Histórico</span>
+      </div>
+      <div style="border-top:1px solid var(--border);margin:8px 0"></div>
+      <div class="nav-item" onclick="state.moduloAtivo=null;render()" style="color:var(--text3)">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span>
+        <span>Portal People</span>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn btn-secondary btn-sm" onclick="logout()" style="width:100%;font-size:12px;color:var(--text3);border-color:transparent;background:transparent;padding:6px 8px;justify-content:flex-start;gap:8px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sair
+      </button>
+    </div>
+  </div>`;
+
+  // ── Conteúdo por subview ──
+  let mainContent = '';
+
+  if (state.movView === 'dashboard') {
+    const total = state.movSolicitacoes.length;
+    const porTipo = MOV_TIPOS.map(t => ({
+      tipo: t,
+      total: state.movSolicitacoes.filter(s => s.tipo === t).length
+    })).filter(x => x.total > 0);
+
+    mainContent = `
+    <div id="content">
+      <div class="page-header flex-between" style="margin-bottom:24px">
+        <div>
+          <div class="page-title">Dashboard MOV</div>
+          <div class="page-desc">Movimentação de Pessoas · visão geral</div>
+        </div>
+        <button class="btn btn-primary" onclick="state.movView='nova';render()">+ Nova solicitação</button>
+      </div>
+      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card"><div class="stat-label">Total solicitações</div><div class="stat-value stat-blue">${total}</div><div class="stat-sub">registradas</div></div>
+        <div class="stat-card"><div class="stat-label">Pendentes</div><div class="stat-value ${pendentes>0?'stat-amber':'stat-green'}">${pendentes}</div><div class="stat-sub">aguardando análise</div></div>
+        <div class="stat-card"><div class="stat-label">Concluídas</div><div class="stat-value stat-green">${state.movSolicitacoes.filter(s=>s.status==='Concluída').length}</div><div class="stat-sub">finalizadas</div></div>
+      </div>
+      ${total === 0 ? `
+      <div class="card" style="margin-top:8px">
+        <div class="empty-state"><div class="empty-icon">🔄</div>
+          <div class="empty-text">Nenhuma solicitação de movimentação ainda</div>
+          <div class="empty-sub" style="margin-bottom:16px">Crie a primeira solicitação para este módulo</div>
+          <button class="btn btn-primary" onclick="state.movView='nova';render()">+ Nova solicitação</button>
+        </div>
+      </div>` : `
+      <div class="card" style="margin-top:8px">
+        <div class="card-title" style="margin-bottom:14px">Últimas solicitações</div>
+        <div class="table-wrap" style="border:none"><table>
+          <thead><tr><th>Tipo</th><th>Colaborador</th><th>Status</th><th>Criado em</th></tr></thead>
+          <tbody>${state.movSolicitacoes.slice(-5).reverse().map(s=>`<tr>
+            <td style="font-size:13px">${s.tipo}</td>
+            <td style="font-size:13px;color:var(--text2)">${s.colaborador||'—'}</td>
+            <td><span class="badge ${MOV_STATUS_MAP[s.status]||'badge-pending'}">${s.status}</span></td>
+            <td style="font-size:12px;color:var(--text3)">${formatDate(s.criadoEm)}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+      </div>`}
+      ${porTipo.length > 0 ? `
+      <div class="card" style="margin-top:14px">
+        <div class="card-title" style="margin-bottom:14px">Distribuição por tipo</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${porTipo.map(t => `
+          <div>
+            <div class="flex-between" style="margin-bottom:4px">
+              <span style="font-size:12px;color:var(--text2)">${t.tipo}</span>
+              <span style="font-size:12px;font-weight:500">${t.total}</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill progress-green" style="width:${Math.round(t.total/total*100)}%"></div></div>
+          </div>`).join('')}
+        </div>
+      </div>` : ''}
+    </div>`;
+  }
+
+  else if (state.movView === 'nova') {
+    mainContent = `
+    <div id="content">
+      <div class="page-header"><div class="page-title">Nova Solicitação</div><div class="page-desc">Movimentação de Pessoas</div></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;align-items:start">
+        <div class="card">
+          <div class="form-group">
+            <label>Tipo de movimentação *</label>
+            <select id="mov-tipo">
+              <option value="">Selecione o tipo</option>
+              ${MOV_TIPOS.map(t=>`<option value="${t}">${t}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Colaborador envolvido</label>
+            <select id="mov-colab">
+              <option value="">Selecione (opcional)</option>
+              ${state.users.filter(x=>x.role!=='admin').map(x=>`<option value="${x.name}">${x.name} — ${x.departamento||x.squad||'—'}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Descrição *</label>
+            <textarea id="mov-desc" placeholder="Descreva a solicitação de movimentação..." style="min-height:100px"></textarea>
+          </div>
+          <div class="flex gap-2" style="justify-content:flex-end">
+            <button class="btn btn-secondary" onclick="state.movView='dashboard';render()">Cancelar</button>
+            <button class="btn btn-primary" onclick="criarMovSolicitacao({
+              tipo: document.getElementById('mov-tipo').value,
+              colaborador: document.getElementById('mov-colab').value,
+              descricao: document.getElementById('mov-desc').value
+            })">Criar solicitação</button>
+          </div>
+        </div>
+        <div class="card" style="background:var(--info-light);border-color:#bfdbfe">
+          <div style="font-size:12px;font-weight:600;color:var(--info);margin-bottom:10px">ℹ️ Tipos de movimentação</div>
+          <ul style="font-size:12px;color:var(--info);line-height:1.9;padding-left:16px">
+            <li><strong>Abertura de vaga</strong> — nova posição na equipe</li>
+            <li><strong>Movimentação de área</strong> — colaborador muda de equipe</li>
+            <li><strong>Mudança de gestor</strong> — alteração de responsável</li>
+            <li><strong>Outros</strong> — demais solicitações de RH</li>
+          </ul>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  else if (state.movView === 'listagem' || state.movView === 'historico') {
+    const isHist = state.movView === 'historico';
+    const lista = isHist
+      ? state.movSolicitacoes.filter(s=>['Concluída','Recusada'].includes(s.status))
+      : state.movSolicitacoes.filter(s=>!['Concluída','Recusada'].includes(s.status));
+
+    mainContent = `
+    <div id="content">
+      <div class="page-header flex-between">
+        <div>
+          <div class="page-title">${isHist?'Histórico':'Solicitações'}</div>
+          <div class="page-desc">${lista.length} registro(s)</div>
+        </div>
+        ${!isHist?`<button class="btn btn-primary" onclick="state.movView='nova';render()">+ Nova solicitação</button>`:''}
+      </div>
+      ${lista.length === 0 ? `<div class="empty-state card"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma solicitação ${isHist?'no histórico':'em aberto'}</div></div>` : `
+      <div class="table-wrap"><table>
+        <thead><tr><th>Tipo</th><th>Colaborador</th><th>Descrição</th><th>Status</th><th>Criado em</th>${!isHist?'<th>Ações</th>':''}</tr></thead>
+        <tbody>${lista.slice().reverse().map(s=>`<tr>
+          <td style="font-size:13px;font-weight:500">${s.tipo}</td>
+          <td style="font-size:12px;color:var(--text2)">${s.colaborador||'—'}</td>
+          <td style="font-size:12px;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.descricao}</td>
+          <td><span class="badge ${MOV_STATUS_MAP[s.status]||'badge-pending'}">${s.status}</span></td>
+          <td style="font-size:12px;color:var(--text3)">${formatDate(s.criadoEm)}</td>
+          ${!isHist?`<td>
+            <select style="font-size:11px;padding:3px 6px;border-radius:4px;border:1px solid var(--border)" onchange="(function(el){const s=state.movSolicitacoes.find(x=>x.id===${s.id});if(s){s.status=el.value;showToast('Status atualizado');render()}})(this)">
+              ${['Pendente','Em análise','Aprovada','Recusada','Concluída'].map(st=>`<option value="${st}" ${s.status===st?'selected':''}>${st}</option>`).join('')}
+            </select>
+          </td>`:''}
+        </tr>`).join('')}
+        </tbody>
+      </table></div>`}
+    </div>`;
+  }
+
+  return `
+  <div style="display:flex;min-height:100vh">
+    ${sidebarMOV}
+    <div id="main" style="flex:1;overflow-y:auto">
+      <div id="topbar">
+        <div style="font-size:13px;font-weight:500;color:var(--text2)">🔄 Movimentação de Pessoas</div>
+        <div class="flex gap-2">
+          <button class="btn btn-secondary btn-sm" onclick="state.moduloAtivo=null;render()">← Portal People</button>
+        </div>
+      </div>
+      ${mainContent}
+    </div>
+  </div>`;
+}
+
 function viewCalendario() {
   const now=new Date(); const year=now.getFullYear(); const month=now.getMonth();
   const firstDay=new Date(year,month,1).getDay();
@@ -1702,6 +2026,12 @@ function viewUsuarios() {
 function render() {
   const app = document.getElementById('app');
   if (!state.currentUser) { app.innerHTML = viewLogin(); return; }
+  // Portal People — interceptar antes do render normal
+  if (state.currentUser.role === 'people') {
+    if (state.moduloAtivo === null)        { app.innerHTML = viewPortalPeople(); return; }
+    if (state.moduloAtivo === 'mov')       { app.innerHTML = viewModuloMOV();    return; }
+    // moduloAtivo === 'ausencias' — cai no fluxo normal abaixo
+  }
   const viewMap = { dashboard:viewDashboard, minhas:viewMinhas, nova:viewNova, aprovacoes:viewAprovacoes, equipe:viewEquipe, calendario:viewCalendario, assistente:viewAssistente, usuarios:viewUsuarios, people:viewPeople };
   const viewFn = viewMap[state.view] || viewDashboard;
   const pending = getPendingDaArea(state.currentUser);
