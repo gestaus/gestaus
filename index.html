@@ -758,125 +758,206 @@ const LOGO_SM = `<svg width="32" height="32" viewBox="0 0 56 56" fill="none" xml
 // LUMI — ASSISTENTE GESTAUS
 // ══════════════════════════════════════════
 
-// Palavras bloqueadas por segurança — dados sensíveis
-const LUMI_AVATAR_MINI = `<svg width="16" height="16" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="14" cy="11" r="7" fill="#fde8d8"/>
-  <path d="M7 10 Q7 4 14 4 Q21 4 21 10 Q21 7 18 7 Q14 5.5 10 7 Q7 7 7 10Z" fill="#4a3728"/>
-  <ellipse cx="11.5" cy="11" rx="1.1" ry="1.2" fill="#2d2520"/>
-  <ellipse cx="16.5" cy="11" rx="1.1" ry="1.2" fill="#2d2520"/>
-  <path d="M11.5 14 Q14 15.5 16.5 14" stroke="#c0725a" stroke-width="1" stroke-linecap="round" fill="none"/>
-  <path d="M8 22 Q8 18 14 18 Q20 18 20 22 L20 28 L8 28Z" fill="#1e5fa8"/>
-</svg>`;
+// ── Avatar mini (usado nas bolhas) ─────────────────────────────────────────
+const LUMI_AVATAR_MINI = `<svg width="16" height="16" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="14" cy="11" r="7" fill="#fde8d8"/><path d="M7 10 Q7 4 14 4 Q21 4 21 10 Q21 7 18 7 Q14 5.5 10 7 Q7 7 7 10Z" fill="#4a3728"/><ellipse cx="11.5" cy="11" rx="1.1" ry="1.2" fill="#2d2520"/><ellipse cx="16.5" cy="11" rx="1.1" ry="1.2" fill="#2d2520"/><path d="M11.5 14 Q14 15.5 16.5 14" stroke="#c0725a" stroke-width="1" stroke-linecap="round" fill="none"/><path d="M8 22 Q8 18 14 18 Q20 18 20 22 L20 28 L8 28Z" fill="#1e5fa8"/></svg>`;
 
+// ── Palavras bloqueadas — dados sensíveis ──────────────────────────────────
 const LUMI_BLOCKED = [
-  'salário','salario','remuneração','remuneracao','remuner',
-  'reajuste','aumento salarial','quanto ganha','quanto recebe',
-  'folha de pagamento','folha pagamento','pagamento','holerite',
-  'cpf','rg','documento','dados pessoais','endereço','endereco',
-  'telefone pessoal','cel ','celular pessoal','senha','password',
-  'financeiro pessoal','conta bancária','conta bancaria','banco',
-  'pix','cnpj individual','dado confidencial','confidencial',
-  'dado sensível','dado sensivel',
+  'salario','salários','remuneracao','remuneração','reajuste','aumento salarial',
+  'quanto ganha','quanto recebe','folha de pagamento','folha pagamento',
+  'holerite','contracheque','cpf','rg','dado pessoal','dados pessoais',
+  'endereco','endereço','telefone pessoal','celular pessoal','senha','password',
+  'conta bancaria','conta bancária','banco','pix','cnpj individual',
+  'dado confidencial','dado sensivel','dado sensível','plr','bonus','bônus',
+  'rescisao','rescisão','verba','compensacao','compensação',
 ];
 
 function lumiCheckBlocked(text) {
-  const lower = text.toLowerCase();
-  return LUMI_BLOCKED.some(w => lower.includes(w));
+  const t = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  return LUMI_BLOCKED.some(w =>
+    t.includes(w.normalize('NFD').replace(/[\u0300-\u036f]/g,''))
+  );
 }
 
+// ── Normalização robusta ────────────────────────────────────────────────────
+function lumiNorm(text) {
+  return text.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .replace(/[^\w\s]/g, ' ')  // pontuação → espaço
+    .replace(/\s+/g, ' ')      // múltiplos espaços → um
+    .trim();
+}
+
+// ── Contexto seguro do sistema ──────────────────────────────────────────────
 function lumiGetContext() {
   const u = state.currentUser;
   if (!u) return null;
   const sols = state.solicitacoes || [];
-  const pendentes = sols.filter(s => s.status === 'Pendente').length;
-  const aprovadas = sols.filter(s => s.status === 'Aprovada').length;
   const hoje = new Date().toISOString().slice(0,10);
-  const proxima7 = sols.filter(s =>
-    ['Aprovada','Pendente'].includes(s.status) &&
-    s.data_inicio >= hoje &&
-    s.data_inicio <= new Date(Date.now()+7*864e5).toISOString().slice(0,10)
-  ).length;
-  const totalUsers = state.users?.filter(x => x.status === 'ativo' && x.role !== 'admin').length || 0;
-  const movPendentes = state.movSolicitacoes?.filter(s => ['Enviada','Em análise'].includes(s.status)).length || 0;
-  return { u, pendentes, aprovadas, proxima7, totalUsers, movPendentes };
+  const em7   = new Date(Date.now()+7*864e5).toISOString().slice(0,10);
+  return {
+    u,
+    is: (...roles) => roles.includes(u.role),
+    pendentes:    sols.filter(s => s.status === 'Pendente').length,
+    proxima7:     sols.filter(s => ['Aprovada','Pendente'].includes(s.status) && s.data_inicio >= hoje && s.data_inicio <= em7).length,
+    totalUsers:   (state.users||[]).filter(x => x.status === 'ativo' && x.role !== 'admin').length,
+    movPendentes: (state.movSolicitacoes||[]).filter(s => ['Enviada','Em análise'].includes(s.status)).length,
+    meusSols:     sols.filter(s => s.user_id === u.id).length,
+  };
 }
 
 function lumiNavigate(modulo, view) {
-  if (modulo) { state.moduloAtivo = modulo; }
-  if (view)   { state.view = view; }
+  if (modulo !== undefined) state.moduloAtivo = modulo;
+  if (view)                 state.view = view;
   render();
 }
 
-function lumiRespond(input) {
-  const txt = input.trim().toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // remove acentos para match
-  const raw = input.trim().toLowerCase(); // original com acentos
-  const ctx = lumiGetContext();
-  if (!ctx) return { msg: 'Não consegui carregar o contexto. Tente novamente.', nav: null };
-  const u = ctx.u;
+// ════════════════════════════════════════════════════════════════════════════
+// BASE DE INTENÇÕES
+// Cada intenção: { id, match: fn(txt)→bool, exec: fn(ctx)→{msg,nav?,navLabel?,autoNav?,blocked?} }
+// ════════════════════════════════════════════════════════════════════════════
+function lumiBuildIntents() {
+  // Helper: verifica se ALGUM dos termos aparece no texto normalizado
+  const has  = (txt, ...terms) => terms.some(t => txt.includes(t));
+  // Helper: verifica se TODOS os termos aparecem
+  const all  = (txt, ...terms) => terms.every(t => txt.includes(t));
+  // Helper: regex match
+  const rx   = (txt, pattern) => pattern.test(txt);
 
-  // ════════════════════════════════════════════════════
-  // BLOQUEIO DE SEGURANÇA — dados sensíveis
-  // ════════════════════════════════════════════════════
-  if (lumiCheckBlocked(raw)) {
-    return {
-      msg: '🔒 Não posso exibir informações sensíveis por este canal.',
-      nav: null, blocked: true
-    };
-  }
+  return [
 
-  // helper de permissão
-  const is = (...roles) => roles.includes(u.role);
+    // ════════════════════════════════════════
+    // SAUDAÇÕES & META
+    // ════════════════════════════════════════
+    {
+      id: 'saudacao',
+      match: txt => rx(txt, /^(oi|ola|bom dia|boa tarde|boa noite|hey|hello|ei lumi|ola lumi|oi lumi)[\s!?.]*$/),
+      exec: ctx => ({ msg: `Olá, <strong>${ctx.u.name.split(' ')[0]}</strong>! Como posso ajudar você hoje?`, nav: null })
+    },
+    {
+      id: 'agradecimento',
+      match: txt => rx(txt, /^(obrigad|valeu|brigad|thanks|tudo certo|perfeito|otimo|show|legal|ok|certo)[\w\s!.]*$/),
+      exec: ()  => ({ msg: 'Disponha! Se precisar de mais alguma coisa, é só chamar. 😊', nav: null })
+    },
+    {
+      id: 'sobre_lumi',
+      match: txt => has(txt, 'quem e voce', 'o que voce faz', 'o que e lumi', 'quem e lumi', 'me ajuda', 'como voce funciona', 'o que pode', 'como usar', 'ajuda'),
+      exec: ()  => ({
+        msg: `Sou a <strong>Lumi</strong>, assistente do GestAus! Posso te ajudar com:<br>
+• Navegar entre módulos<br>
+• Ver pendências e ausências<br>
+• Abrir calendário e aprovações<br>
+• Criar solicitações (Ausência, MOV)<br>
+• Consultar status da equipe<br>
+Use as sugestões abaixo ou me pergunte algo!`,
+        nav: null
+      })
+    },
 
-  // ════════════════════════════════════════════════════
-  // BASE DE INTENÇÕES
-  // ════════════════════════════════════════════════════
-
-  const intencoes = [
-
-    // ── PORTAL ────────────────────────────────────────
+    // ════════════════════════════════════════
+    // PORTAL / NAVEGAÇÃO GERAL
+    // ════════════════════════════════════════
     {
       id: 'portal_home',
-      tags: /portal|pagina inicial|pagina home|tela inicial|inicio|home|modulos|voltar ao portal/,
-      exec() {
-        return { msg: '🏠 Indo para o Portal People.', autoNav: true,
-          nav: () => { state.moduloAtivo = null; render(); } };
-      }
+      match: txt => has(txt, 'portal', 'pagina inicial', 'tela inicial', 'voltar', 'inicio', 'modulos') && !has(txt, 'ausencia', 'mov', 'clt'),
+      exec: ()  => ({ msg: '🏠 Indo para o Portal People.', autoNav: true, nav: () => { state.moduloAtivo = null; render(); } })
     },
-
-    // ── AJUDA / SOBRE A LUMI ───────────────────────────
-    {
-      id: 'ajuda_lumi',
-      tags: /ajuda|help|o que (voce|lumi) (faz|pode|e)|como usar|quem e lumi|me ajuda/,
-      exec() {
-        const acoes = [
-          '• Navegar entre módulos',
-          '• Ver pendências e ausências',
-          '• Abrir calendário e aprovações',
-          '• Iniciar solicitações (Ausência, MOV)',
-          '• Consultar status da equipe',
-          '• Responder dúvidas sobre o sistema',
-        ];
-        return { msg: `Sou a <strong>Lumi</strong>, assistente do GestAus. Aqui está o que posso fazer:<br><br>${acoes.join('<br>')}`, nav: null };
-      }
-    },
-
-    // ── DASHBOARD ─────────────────────────────────────
     {
       id: 'dashboard',
-      tags: /dashboard|painel|resumo|overview|visao geral/,
-      exec() {
-        return { msg: '📊 Abrindo o dashboard.', autoNav: true,
-          nav: () => lumiNavigate('ausencias', 'dashboard') };
+      match: txt => has(txt, 'dashboard', 'painel', 'visao geral', 'overview') && !has(txt, 'mov'),
+      exec: ()  => ({ msg: '📊 Abrindo o dashboard.', autoNav: true, nav: () => lumiNavigate('ausencias', 'dashboard') })
+    },
+    {
+      id: 'status_sistema',
+      match: txt => has(txt, 'resumo', 'status', 'como esta tudo', 'como estao as coisas', 'resumo geral'),
+      exec: ctx => {
+        const lines = [
+          `📊 <strong>Situação atual:</strong>`,
+          `• ${ctx.pendentes} ausência${ctx.pendentes!==1?'s':''} aguardando aprovação`,
+          `• ${ctx.proxima7} ausência${ctx.proxima7!==1?'s':''} nos próximos 7 dias`,
+          `• ${ctx.totalUsers} colaborador${ctx.totalUsers!==1?'es':''} ativo${ctx.totalUsers!==1?'s':''}`,
+        ];
+        if (ctx.is('people','admin','gestor') && ctx.movPendentes > 0)
+          lines.push(`• ${ctx.movPendentes} solicitaç${ctx.movPendentes!==1?'ões':'ão'} MOV em aberto`);
+        return { msg: lines.join('<br>'), nav: null };
+      }
+    },
+    {
+      id: 'assistente_ia',
+      match: txt => has(txt, 'assistente ia', 'ia do sistema', 'inteligencia artificial', 'claude', 'perguntar ia', 'modulo ia'),
+      exec: ()  => ({ msg: '🤖 Abrindo o Assistente IA.', autoNav: true, nav: () => lumiNavigate('ausencias', 'assistente') })
+    },
+    {
+      id: 'usuarios_admin',
+      match: txt => has(txt, 'gerenciar usuario', 'gestao de usuario', 'cadastrar usuario', 'adicionar usuario', 'permissao de acesso', 'acesso ao sistema') || (has(txt, 'usuario') && has(txt, 'gerenciar', 'cadastrar', 'criar', 'editar', 'acesso')),
+      exec: ctx => {
+        if (!ctx.is('admin')) return { msg: '⚠️ Apenas administradores podem gerenciar usuários.', nav: null, blocked: true };
+        return { msg: '⚙️ Abrindo gestão de usuários.', autoNav: true, nav: () => lumiNavigate('ausencias', 'usuarios') };
       }
     },
 
-    // ── PENDÊNCIAS ────────────────────────────────────
+    // ════════════════════════════════════════
+    // GESTÃO DE DISPONIBILIDADE PJ — AUSÊNCIAS
+    // ════════════════════════════════════════
+    {
+      id: 'nova_ausencia',
+      match: txt =>
+        has(txt, 'nova ausencia', 'nova solicitacao', 'criar ausencia', 'criar solicitacao', 'abrir ausencia', 'abrir solicitacao', 'solicitar ausencia', 'solicitar ferias', 'pedir ferias', 'pedir folga', 'tirar ferias', 'registrar ausencia') ||
+        (has(txt, 'nova', 'criar', 'abrir', 'solicitar', 'pedir', 'quero') && has(txt, 'ausencia', 'ferias', 'folga', 'licenca', 'afastamento')),
+      exec: ()  => ({ msg: '➕ Abrindo o formulário de nova solicitação de ausência.', autoNav: true, nav: () => lumiNavigate('ausencias', 'nova') })
+    },
+    {
+      id: 'minhas_ausencias',
+      match: txt => has(txt, 'minhas ausencias', 'meu historico', 'minhas solicitacoes', 'ver minhas ausencias', 'minhas ferias', 'ausencias minhas') ||
+        (has(txt, 'minhas', 'meu', 'minha') && has(txt, 'ausencia', 'solicitacao', 'historico')),
+      exec: ctx => ({
+        msg: `Você tem <strong>${ctx.meusSols}</strong> ausência${ctx.meusSols!==1?'s':''} registrada${ctx.meusSols!==1?'s':''}.`,
+        nav: () => lumiNavigate('ausencias', 'minhas'), navLabel: 'Ver minhas ausências'
+      })
+    },
+    {
+      id: 'proximas_ausencias',
+      match: txt =>
+        has(txt, 'proximas ausencias', 'ausencias da semana', 'ausencias hoje', 'ausencias amanha', 'ausencias agendadas', 'quem esta de ferias', 'quem vai tirar ferias') ||
+        (has(txt, 'ausencia') && has(txt, 'semana', 'proxima', 'hoje', 'amanha', 'agendada', 'essa semana')),
+      exec: ctx => ({
+        msg: `📅 Há <strong>${ctx.proxima7}</strong> ausência${ctx.proxima7!==1?'s':''} agendada${ctx.proxima7!==1?'s':''} nos próximos 7 dias.`,
+        nav: () => lumiNavigate('ausencias', 'calendario'), navLabel: 'Ver calendário'
+      })
+    },
+    {
+      id: 'meu_saldo',
+      match: txt => has(txt, 'meu saldo', 'quantos dias tenho', 'meu limite', 'saldo disponivel', 'dias disponiveis', 'minha situacao de ferias', 'quanto tenho de ferias', 'quanto posso tirar'),
+      exec: ()  => {
+        const s = typeof getSaldo === 'function' ? getSaldo(state.currentUser.id) : null;
+        if (!s) return { msg: 'Não consegui carregar seu saldo agora.', nav: null };
+        return { msg: `Seu saldo atual: <strong>${s.saldo} dias disponíveis</strong> de ${s.diasCiclo} no ciclo (${s.usados} usados).`, nav: null };
+      }
+    },
+    {
+      id: 'cancelar_ausencia',
+      match: txt => has(txt, 'cancelar ausencia', 'cancelar solicitacao', 'como cancelo', 'posso cancelar', 'desfazer solicitacao', 'remover ausencia'),
+      exec: ()  => ({
+        msg: 'Você pode cancelar solicitações com status <strong>Pendente</strong> ou <strong>Aprovada</strong> em <strong>Minhas Ausências</strong>, clicando em "Cancelar".',
+        nav: () => lumiNavigate('ausencias', 'minhas'), navLabel: 'Minhas ausências'
+      })
+    },
+    {
+      id: 'faq_saldo',
+      match: txt => has(txt, 'como funciona saldo', 'como funciona o ciclo', 'como e calculado', 'o que e saldo', 'o que e ciclo', 'o que e limite'),
+      exec: ()  => ({ msg: 'O saldo é calculado pela data de admissão. Cada ciclo tem um limite de dias (padrão: 30). Ausências aprovadas são descontadas do saldo.', nav: null })
+    },
+
+    // ════════════════════════════════════════
+    // APROVAÇÕES
+    // ════════════════════════════════════════
     {
       id: 'pendencias',
-      tags: /pend[eê]?ncia|pendente|aguardando aprova|quantas?.*(solicita|ausencia)|solicita.*pendente/,
-      exec() {
-        if (!is('gestor','admin','people'))
+      match: txt =>
+        has(txt, 'pendencias', 'pendentes', 'aguardando aprovacao', 'o que esta pendente', 'quantas pendencias', 'solicitacoes pendentes') ||
+        (has(txt, 'quanto', 'quantas', 'ver') && has(txt, 'pendente', 'pendencia')),
+      exec: ctx => {
+        if (!ctx.is('gestor','admin','people'))
           return { msg: `Você tem ${ctx.pendentes} solicitação${ctx.pendentes!==1?'ões':''} pendente${ctx.pendentes!==1?'s':''}.`, nav: null };
         if (ctx.pendentes === 0)
           return { msg: '✅ Nenhuma ausência pendente de aprovação no momento.', nav: null };
@@ -886,13 +967,13 @@ function lumiRespond(input) {
         };
       }
     },
-
-    // ── APROVAÇÕES ────────────────────────────────────
     {
       id: 'aprovacoes',
-      tags: /aprova[cç][aã]o|aprovar|tela de aprova|gestao de ausencia/,
-      exec() {
-        if (!is('gestor','admin','people'))
+      match: txt =>
+        has(txt, 'aprovacoes', 'tela de aprovacao', 'aprovar ausencia', 'aprovar solicitacao', 'gestao de ausencias', 'como aprovar', 'recusar ausencia') ||
+        (has(txt, 'aprovar') && has(txt, 'ausencia', 'solicitacao', 'pedido')),
+      exec: ctx => {
+        if (!ctx.is('gestor','admin','people'))
           return { msg: '⚠️ Você não tem acesso à tela de aprovações.', nav: null, blocked: true };
         return {
           msg: `Tela de aprovações — ${ctx.pendentes} solicitação${ctx.pendentes!==1?'ões':''} pendente${ctx.pendentes!==1?'s':''}.`,
@@ -900,323 +981,201 @@ function lumiRespond(input) {
         };
       }
     },
-
-    // ── MINHA SITUAÇÃO / SALDO ────────────────────────
-    {
-      id: 'meu_saldo',
-      tags: /meu saldo|quantos dias|meu limite|saldo disponivel|dias? disponiveis?|minha situacao/,
-      exec() {
-        const s = typeof getSaldo === 'function' ? getSaldo(u.id) : null;
-        if (!s) return { msg: 'Não consegui carregar seu saldo agora.', nav: null };
-        return { msg: `Seu saldo atual: <strong>${s.saldo} dias disponíveis</strong> de ${s.diasCiclo} no ciclo (${s.usados} usados).`, nav: null };
-      }
-    },
-
-    // ── NOVA SOLICITAÇÃO DE AUSÊNCIA ──────────────────
-    {
-      id: 'nova_ausencia',
-      tags: /nova (solicita|ausencia)|solicitar (ausencia|ferias|folga|licenca)|criar (solicita|ausencia)|abrir solicita/,
-      exec() {
-        return { msg: '➕ Abrindo o formulário de nova solicitação.', autoNav: true,
-          nav: () => lumiNavigate('ausencias', 'nova') };
-      }
-    },
-
-    // ── MINHAS AUSÊNCIAS ──────────────────────────────
-    {
-      id: 'minhas_ausencias',
-      tags: /minha(s)? aus[eê]?ncia|meu historico|minhas solicita|ver minhas/,
-      exec() {
-        const total = state.solicitacoes?.filter(s => s.user_id === u.id).length || 0;
-        return {
-          msg: `Você tem <strong>${total}</strong> ausência${total!==1?'s':''} registrada${total!==1?'s':''}.`,
-          nav: () => lumiNavigate('ausencias', 'minhas'), navLabel: 'Ver minhas ausências'
-        };
-      }
-    },
-
-    // ── AUSÊNCIAS DA SEMANA / PRÓXIMAS ────────────────
-    {
-      id: 'proximas_ausencias',
-      tags: /ausencia.*(semana|proxima|hoje|amanha|essa semana)|proxima.*(ausencia|solicita)|agendada/,
-      exec() {
-        return {
-          msg: `📅 Há <strong>${ctx.proxima7}</strong> ausência${ctx.proxima7!==1?'s':''} agendada${ctx.proxima7!==1?'s':''} para os próximos 7 dias.`,
-          nav: () => lumiNavigate('ausencias', 'calendario'), navLabel: 'Ver calendário'
-        };
-      }
-    },
-
-    // ── CALENDÁRIO ────────────────────────────────────
-    {
-      id: 'calendario',
-      tags: /calend[aá]?rio|agenda.*equipe|ver.*agenda/,
-      exec() {
-        return { msg: '📅 Abrindo o calendário da equipe.', autoNav: true,
-          nav: () => lumiNavigate('ausencias', 'calendario') };
-      }
-    },
-
-    // ── EQUIPE ────────────────────────────────────────
-    {
-      id: 'equipe',
-      tags: /equipe|time|meus colaboradores|quem e da (minha |)equipe|ver equipe|membro/,
-      exec() {
-        return {
-          msg: `👥 Sua equipe conta com <strong>${ctx.totalUsers}</strong> colaborador${ctx.totalUsers!==1?'es':''} ativo${ctx.totalUsers!==1?'s':''}.`,
-          nav: () => lumiNavigate('ausencias', 'equipe'), navLabel: 'Ver equipe'
-        };
-      }
-    },
-
-    // ── CONFIRMAÇÃO PEOPLE ────────────────────────────
     {
       id: 'confirmacao_people',
-      tags: /ciencia|confirma[cç][aã]o.*(people|rh)|people.*(confirma|cien)|tela.*(people|rh)/,
-      exec() {
-        if (!is('people','admin'))
+      match: txt => has(txt, 'ciencia people', 'confirmar ausencia', 'confirmar para people', 'tela people', 'confirmacao do people', 'modulo people'),
+      exec: ctx => {
+        if (!ctx.is('people','admin'))
           return { msg: '⚠️ Você não tem acesso à confirmação do People.', nav: null, blocked: true };
-        return { msg: 'Abrindo a confirmação do People.', autoNav: true,
-          nav: () => lumiNavigate('ausencias', 'people') };
+        return { msg: 'Abrindo a tela de confirmação do People.', autoNav: true, nav: () => lumiNavigate('ausencias', 'people') };
       }
     },
 
-    // ── ASSISTENTE IA ─────────────────────────────────
+    // ════════════════════════════════════════
+    // CALENDÁRIO & EQUIPE
+    // ════════════════════════════════════════
     {
-      id: 'assistente_ia',
-      tags: /assistente ia|ia|inteligencia artificial|claude|perguntar para ia/,
-      exec() {
-        return { msg: '🤖 Abrindo o Assistente IA do GestAus.', autoNav: true,
-          nav: () => lumiNavigate('ausencias', 'assistente') };
-      }
+      id: 'calendario',
+      match: txt => has(txt, 'calendario', 'agenda', 'ver calendario', 'abrir calendario', 'agenda da equipe', 'calendario de ausencias'),
+      exec: ()  => ({ msg: '📅 Abrindo o calendário da equipe.', autoNav: true, nav: () => lumiNavigate('ausencias', 'calendario') })
+    },
+    {
+      id: 'equipe',
+      match: txt =>
+        has(txt, 'equipe', 'time', 'meus colaboradores', 'ver equipe', 'membros da equipe', 'quem e da equipe', 'colaboradores') ||
+        (has(txt, 'ver', 'abrir') && has(txt, 'equipe', 'time', 'colaborador')),
+      exec: ctx => ({
+        msg: `👥 Sua equipe tem <strong>${ctx.totalUsers}</strong> colaborador${ctx.totalUsers!==1?'es':''} ativo${ctx.totalUsers!==1?'s':''}.`,
+        nav: () => lumiNavigate('ausencias', 'equipe'), navLabel: 'Ver equipe'
+      })
     },
 
-    // ── MOV — GERAL ───────────────────────────────────
+    // ════════════════════════════════════════
+    // MOV — MOVIMENTAÇÃO DE PESSOAS
+    // ════════════════════════════════════════
+    {
+      id: 'mov_nova_vaga',
+      match: txt =>
+        has(txt, 'abrir vaga', 'criar vaga', 'nova vaga', 'abrir uma vaga', 'criar uma vaga', 'abrir posicao', 'nova posicao', 'como abrir vaga', 'como criar vaga', 'quero abrir vaga', 'preciso de uma vaga', 'contratar alguem', 'contratar pessoa', 'recrutar', 'nova contratacao', 'processo seletivo', 'requisicao de pessoal', 'requisicao de vaga', 'solicitar vaga') ||
+        (has(txt, 'abrir', 'criar', 'nova', 'novo', 'preciso', 'quero') && has(txt, 'vaga', 'posicao', 'contratacao', 'funcionario novo', 'colaborador novo')) ||
+        (has(txt, 'criar', 'abrir', 'fazer', 'quero') && has(txt, 'requisicao')),
+      exec: ctx => {
+        if (!ctx.is('people','admin','gestor'))
+          return { msg: '⚠️ Você não tem acesso ao módulo MOV.', nav: null, blocked: true };
+        return {
+          msg: 'Para abrir uma vaga, crie uma <strong>Requisição de Pessoal</strong> no módulo MOV. Posso te levar direto para o formulário.',
+          nav: () => { state.moduloAtivo='mov'; state.movView='nova'; state.movStep=1; state.movTipoSel={id:'requisicao',label:'Requisição de Pessoal',desc:'Abertura de nova vaga'}; render(); },
+          navLabel: 'Abrir formulário MOV'
+        };
+      }
+    },
+    {
+      id: 'mov_desligamento',
+      match: txt =>
+        has(txt, 'desligar colaborador', 'desligar funcionario', 'desligar pessoa', 'processo de desligamento', 'solicitar desligamento', 'encerrar contrato', 'demissao', 'demitir') ||
+        (has(txt, 'desligamento') && !has(txt, 'offboarding')) ||
+        (has(txt, 'desligar', 'demitir') && has(txt, 'colaborador', 'funcionario', 'pessoa', 'alguem', 'um', 'esse')),
+      exec: ctx => {
+        if (!ctx.is('people','admin','gestor'))
+          return { msg: '⚠️ Você não tem acesso ao módulo MOV.', nav: null, blocked: true };
+        return {
+          msg: 'Para solicitar um desligamento, acesse o módulo MOV e crie uma solicitação do tipo <strong>Desligamento</strong>.',
+          nav: () => { state.moduloAtivo='mov'; state.movView='nova'; state.movStep=1; state.movTipoSel={id:'desligamento',label:'Desligamento',desc:'Desligamento de colaborador'}; render(); },
+          navLabel: 'Abrir formulário MOV'
+        };
+      }
+    },
+    {
+      id: 'mov_alteracao',
+      match: txt =>
+        has(txt, 'mudanca de area', 'mudar de area', 'mudanca de cargo', 'mudar de cargo', 'mudanca de gestor', 'mudar gestor', 'alterar cargo', 'alterar area', 'alterar salario', 'alteracao de cargo', 'alteracao de area', 'promocao de cargo', 'promover colaborador', 'transferencia de area', 'transferir colaborador') ||
+        (has(txt, 'mudar', 'alterar', 'modificar', 'transferir', 'promover') && has(txt, 'cargo', 'area', 'gestor', 'funcao', 'departamento')),
+      exec: ctx => {
+        if (!ctx.is('people','admin','gestor'))
+          return { msg: '⚠️ Você não tem acesso ao módulo MOV.', nav: null, blocked: true };
+        return {
+          msg: 'Para alterações de cargo, área ou gestor, crie uma solicitação do tipo <strong>Alteração de Cargo/Área/Salário</strong> no módulo MOV.',
+          nav: () => { state.moduloAtivo='mov'; state.movView='nova'; state.movStep=1; state.movTipoSel={id:'alteracao',label:'Alteração de Cargo / Área / Salário',desc:'Mudança de cargo, área ou remuneração'}; render(); },
+          navLabel: 'Abrir formulário MOV'
+        };
+      }
+    },
     {
       id: 'mov_geral',
-      tags: /\bmov\b|modulo mov|movimenta[cç][aã]o de pessoas|movimenta[cç][aã]o/,
-      exec() {
-        if (!is('people','admin','gestor'))
+      match: txt =>
+        has(txt, 'modulo mov', 'abrir mov', 'ir para mov', 'ver mov', 'movimentacao de pessoas', 'movimentacoes', 'solicitacao mov', 'dashboard mov') ||
+        (has(txt, 'mov') && has(txt, 'abrir', 'ver', 'acessar', 'ir', 'dashboard', 'pendente', 'pendencias', 'solicitacao')) ||
+        txt === 'mov',
+      exec: ctx => {
+        if (!ctx.is('people','admin','gestor'))
           return { msg: '⚠️ Você não tem acesso ao módulo MOV.', nav: null, blocked: true };
         if (ctx.movPendentes > 0)
           return {
-            msg: `📋 Módulo MOV — <strong>${ctx.movPendentes}</strong> solicitaç${ctx.movPendentes!==1?'ões':'ão'} em aberto.`,
+            msg: `📋 MOV — <strong>${ctx.movPendentes}</strong> solicitaç${ctx.movPendentes!==1?'ões':'ão'} em aberto.`,
             nav: () => lumiNavigate('mov', 'dashboard'), navLabel: 'Abrir MOV'
           };
-        return { msg: '📋 Abrindo o módulo de Movimentação de Pessoas.', autoNav: true,
-          nav: () => lumiNavigate('mov', 'dashboard') };
+        return { msg: '📋 Abrindo o módulo de Movimentação de Pessoas.', autoNav: true, nav: () => lumiNavigate('mov', 'dashboard') };
       }
     },
-
-    // ── MOV — NOVA REQUISIÇÃO ─────────────────────────
     {
-      id: 'mov_nova_requisicao',
-      tags: /requisi[cç][aã]o de pessoal|abrir vaga|nova vaga|contratar|recruta/,
-      exec() {
-        if (!is('people','admin','gestor'))
-          return { msg: '⚠️ Você não tem acesso ao módulo MOV.', nav: null, blocked: true };
-        return { msg: '📋 Iniciando requisição de pessoal no MOV.', autoNav: true,
-          nav: () => { state.moduloAtivo='mov'; state.movView='nova'; state.movStep=1; state.movTipoSel={id:'requisicao'}; render(); }
-        };
-      }
-    },
-
-    // ── MOV — DESLIGAMENTO ────────────────────────────
-    {
-      id: 'mov_desligamento',
-      tags: /desligamento|desligar (colaborador|pessoa|funcionario)|demissao|encerrar contrato/,
-      exec() {
-        if (!is('people','admin','gestor'))
-          return { msg: '⚠️ Você não tem acesso ao módulo MOV.', nav: null, blocked: true };
-        return { msg: '📋 Iniciando processo de desligamento no MOV.', autoNav: true,
-          nav: () => { state.moduloAtivo='mov'; state.movView='nova'; state.movStep=1; state.movTipoSel={id:'desligamento'}; render(); }
-        };
-      }
-    },
-
-    // ── MOV — ALTERAÇÃO DE CARGO ──────────────────────
-    {
-      id: 'mov_alteracao',
-      tags: /altera[cç][aã]o de cargo|mudar cargo|promocao|promover|transferencia|alterar (cargo|area|salario)/,
-      exec() {
-        if (!is('people','admin','gestor'))
-          return { msg: '⚠️ Você não tem acesso ao módulo MOV.', nav: null, blocked: true };
-        return { msg: '📋 Iniciando solicitação de alteração de cargo/área no MOV.', autoNav: true,
-          nav: () => { state.moduloAtivo='mov'; state.movView='nova'; state.movStep=1; state.movTipoSel={id:'alteracao'}; render(); }
-        };
-      }
-    },
-
-    // ── MOV — PENDÊNCIAS ──────────────────────────────
-    {
-      id: 'mov_pendencias',
-      tags: /penden(cia|te).*(mov|movimenta)|mov.*(penden|em aberto|andamento)/,
-      exec() {
-        if (!is('people','admin','gestor'))
-          return { msg: '⚠️ Você não tem acesso ao módulo MOV.', nav: null, blocked: true };
+      id: 'mov_faq',
+      match: txt =>
+        has(txt, 'o que e mov', 'como funciona mov', 'como usar mov', 'para que serve mov', 'o que faz mov', 'o que e movimentacao') ||
+        (has(txt, 'como') && has(txt, 'mov', 'movimentacao') && has(txt, 'funciona', 'usar', 'serve', 'funciona')),
+      exec: ctx => {
+        if (!ctx.is('people','admin','gestor'))
+          return { msg: 'O MOV gerencia movimentações de pessoas na empresa: requisições de vaga, desligamentos e alterações de cargo/área. O acesso é restrito a gestores, People e Admin.', nav: null };
         return {
-          msg: `📋 MOV: <strong>${ctx.movPendentes}</strong> solicitaç${ctx.movPendentes!==1?'ões':'ão'} em aberto.`,
-          nav: () => lumiNavigate('mov', 'dashboard'), navLabel: 'Ver MOV'
+          msg: 'O <strong>MOV</strong> gerencia:<br>• <strong>Requisições</strong> — abrir novas vagas<br>• <strong>Desligamentos</strong> — encerrar contratos<br>• <strong>Alterações</strong> — cargo, área ou gestor',
+          nav: () => lumiNavigate('mov', 'dashboard'), navLabel: 'Abrir MOV'
         };
       }
     },
 
-    // ── GESTÃO CLT ────────────────────────────────────
+    // ════════════════════════════════════════
+    // MÓDULOS EM DESENVOLVIMENTO
+    // ════════════════════════════════════════
     {
       id: 'clt',
-      tags: /clt|ferias clt|funcionario clt|colaborador clt|jornada clt/,
-      exec() {
-        return { msg: '📌 O módulo <strong>Gestão CLT</strong> está em desenvolvimento e estará disponível em breve.', nav: null };
-      }
+      match: txt => has(txt, 'clt', 'ferias clt', 'colaborador clt', 'funcionario clt', 'gestao clt', 'modulo clt'),
+      exec: ()  => ({ msg: '📌 O módulo <strong>Gestão CLT</strong> está em desenvolvimento e estará disponível em breve.', nav: null })
     },
-
-    // ── CONTRATOS PJ ─────────────────────────────────
     {
       id: 'contratos_pj',
-      tags: /contrato(s)? pj|contrato.*(prestador|pj)|vigencia.*(contrato|pj)/,
-      exec() {
-        return { msg: '📌 O módulo <strong>Contratos PJ</strong> está em desenvolvimento e estará disponível em breve.', nav: null };
-      }
+      match: txt => has(txt, 'contrato pj', 'contratos pj', 'vigencia contrato', 'contrato prestador'),
+      exec: ()  => ({ msg: '📌 O módulo <strong>Contratos PJ</strong> está em desenvolvimento e estará disponível em breve.', nav: null })
     },
-
-    // ── NOTAS FISCAIS ────────────────────────────────
     {
       id: 'notas_fiscais',
-      tags: /nota(s)? fiscal|nf|fatura|invoice/,
-      exec() {
-        return { msg: '📌 O módulo <strong>Notas Fiscais</strong> está em desenvolvimento e estará disponível em breve.', nav: null };
-      }
+      match: txt => has(txt, 'nota fiscal', 'notas fiscais', 'emitir nf', 'fatura', 'invoice'),
+      exec: ()  => ({ msg: '📌 O módulo <strong>Notas Fiscais</strong> está em desenvolvimento e estará disponível em breve.', nav: null })
     },
-
-    // ── ONBOARDING ────────────────────────────────────
     {
       id: 'onboarding',
-      tags: /onboarding|integra[cç][aã]o.*(novo|colaborador)|admissao|admitir|novo colaborador|novo funcionario/,
-      exec() {
-        return { msg: '📌 O módulo <strong>Onboarding</strong> está em desenvolvimento e estará disponível em breve.', nav: null };
-      }
+      match: txt => has(txt, 'onboarding', 'integracao de colaborador', 'admissao', 'admitir colaborador', 'novo colaborador', 'integrar colaborador') ||
+        (has(txt, 'novo', 'nova', 'admitir') && has(txt, 'colaborador', 'funcionario', 'contratado')),
+      exec: ()  => ({ msg: '📌 O módulo <strong>Onboarding</strong> está em desenvolvimento e estará disponível em breve.', nav: null })
     },
-
-    // ── OFFBOARDING ───────────────────────────────────
     {
       id: 'offboarding',
-      tags: /offboarding|encerramento de jornada|saida.*(colaborador|funcionario)|processo.*(desligamento|saida)/,
-      exec() {
-        return { msg: '📌 O módulo <strong>Offboarding</strong> está em desenvolvimento e estará disponível em breve.', nav: null };
-      }
-    },
-
-    // ── USUÁRIOS (admin) ──────────────────────────────
-    {
-      id: 'usuarios',
-      tags: /usuario(s)?|gerenciar (usuario|pessoa|acesso)|permissao|acesso ao sistema|cadastrar usuario/,
-      exec() {
-        if (!is('admin'))
-          return { msg: '⚠️ Apenas administradores podem gerenciar usuários.', nav: null, blocked: true };
-        return { msg: '⚙️ Abrindo gestão de usuários.', autoNav: true,
-          nav: () => lumiNavigate('ausencias', 'usuarios') };
-      }
-    },
-
-    // ── STATUS GERAL DO SISTEMA ───────────────────────
-    {
-      id: 'status_sistema',
-      tags: /status|resumo geral|como esta(o)? (o sistema|as coisas|tudo)|visao geral do sistema/,
-      exec() {
-        const parts = [
-          `📊 <strong>Resumo atual:</strong>`,
-          `• ${ctx.pendentes} ausência${ctx.pendentes!==1?'s':''} aguardando aprovação`,
-          `• ${ctx.proxima7} ausência${ctx.proxima7!==1?'s':''} nos próximos 7 dias`,
-          `• ${ctx.totalUsers} colaborador${ctx.totalUsers!==1?'es':''} ativo${ctx.totalUsers!==1?'s':''}`,
-        ];
-        if (is('people','admin','gestor') && ctx.movPendentes > 0)
-          parts.push(`• ${ctx.movPendentes} solicitaç${ctx.movPendentes!==1?'ões':'ão'} MOV em aberto`);
-        return { msg: parts.join('<br>'), nav: null };
-      }
-    },
-
-    // ── COMO FAZER (FAQ) ──────────────────────────────
-    {
-      id: 'faq_solicitar',
-      tags: /como (faz|solicito|abro|crio).*(ausencia|ferias|folga|licenca)|como (pedir|solicitar) (ausencia|ferias|folga)/,
-      exec() {
-        return { msg: 'Para solicitar uma ausência: acesse <strong>Ausências → Nova Solicitação</strong>, escolha o período e envie para aprovação do gestor.',
-          nav: () => lumiNavigate('ausencias', 'nova'), navLabel: 'Abrir formulário' };
-      }
-    },
-    {
-      id: 'faq_aprovar',
-      tags: /como (faz|aprovo|recuso|rejeito).*(ausencia|solicita)|processo.*(aprovacao|aprova)/,
-      exec() {
-        if (!is('gestor','admin'))
-          return { msg: 'Solicitações são aprovadas pelo seu gestor direto.', nav: null };
-        return { msg: 'Para aprovar: acesse <strong>Gestão de Ausências → Aprovação do Gestor</strong>, revise e aprove ou recuse cada solicitação.',
-          nav: () => lumiNavigate('ausencias', 'aprovacoes'), navLabel: 'Ir para aprovações' };
-      }
-    },
-    {
-      id: 'faq_saldo',
-      tags: /como.*(calcul|funciona).*(saldo|limite|ciclo)|o que e (saldo|ciclo|limite)/,
-      exec() {
-        return { msg: 'O saldo é calculado com base na data de admissão. Cada ciclo tem um limite de dias (padrão: 30). Dias utilizados em ausências aprovadas são descontados do saldo.', nav: null };
-      }
-    },
-    {
-      id: 'faq_mov',
-      tags: /como.*(usar|funciona|abrir).*(mov|movimenta)|o que e.*(mov|movimenta[cç][aã]o)/,
-      exec() {
-        return { msg: 'O <strong>MOV</strong> gerencia movimentações de pessoas: requisições de vaga, desligamentos e alterações de cargo/área. Acesse pelo Portal People.',
-          nav: () => lumiNavigate('mov', 'dashboard'), navLabel: 'Abrir MOV' };
-      }
-    },
-    {
-      id: 'faq_cancelar',
-      tags: /cancelar (ausencia|solicita)|como cancelo|posso cancelar/,
-      exec() {
-        return { msg: 'Você pode cancelar solicitações com status <strong>Pendente</strong> ou <strong>Aprovada</strong> em <strong>Minhas Ausências</strong>, clicando em "Cancelar".',
-          nav: () => lumiNavigate('ausencias', 'minhas'), navLabel: 'Minhas ausências' };
-      }
-    },
-
-    // ── SAUDAÇÕES ─────────────────────────────────────
-    {
-      id: 'saudacao',
-      tags: /^(oi|ola|bom dia|boa tarde|boa noite|hey|hello|tudo bem|tudo bom|oi lumi|ola lumi)[\s!?.]*$/,
-      exec() {
-        const nome = u.name?.split(' ')[0] || '';
-        return { msg: `Olá, ${nome}! Como posso ajudar você hoje?`, nav: null };
-      }
-    },
-
-    // ── AGRADECIMENTO ─────────────────────────────────
-    {
-      id: 'agradecimento',
-      tags: /^(obrigad|valeu|thanks|brigad|ok obrigad|tudo certo|perfeito|otimo|show)[\w\s!.]*$/,
-      exec() {
-        return { msg: 'Fico à disposição! Se precisar de mais alguma coisa, é só chamar. 😊', nav: null };
-      }
+      match: txt => has(txt, 'offboarding', 'encerramento de jornada', 'processo de saida', 'saida do colaborador'),
+      exec: ()  => ({ msg: '📌 O módulo <strong>Offboarding</strong> está em desenvolvimento e estará disponível em breve.', nav: null })
     },
 
   ];
+}
 
-  // ── ENGINE: percorrer intenções na ordem ──────────────
-  for (const intencao of intencoes) {
-    if (intencao.tags.test(txt)) {
-      return intencao.exec();
-    }
+// ── Engine principal ────────────────────────────────────────────────────────
+function lumiRespond(input) {
+  const ctx = lumiGetContext();
+  if (!ctx) return { msg: 'Não consegui carregar o contexto. Tente recarregar a página.', nav: null };
+
+  // Bloqueio de segurança
+  if (lumiCheckBlocked(input)) {
+    return { msg: '🔒 Não posso exibir informações sensíveis por este canal.', nav: null, blocked: true };
   }
 
-  // ── FALLBACK ──────────────────────────────────────────
+  const txt = lumiNorm(input);
+
+  // Percorrer intenções em ordem
+  const intents = lumiBuildIntents();
+  for (const intent of intents) {
+    try {
+      if (intent.match(txt)) return intent.exec(ctx);
+    } catch(e) { /* ignorar erro em intenção individual */ }
+  }
+
+  // ── Fallback guiado ───────────────────────────────────────────────────────
   return {
-    msg: 'Não entendi completamente. Posso ajudar com: ausências, pendências, aprovações, calendário, equipe, MOV e muito mais.<br>Tente usar as sugestões ou reformule sua pergunta.',
+    msg: `Não reconheci exatamente o que você precisa. Posso ajudar com:<br>
+<strong>Ausências:</strong> solicitar, ver pendências, aprovar, calendário<br>
+<strong>MOV:</strong> abrir vaga, desligamento, mudança de cargo<br>
+<strong>Equipe:</strong> ver colaboradores, status da equipe<br><br>
+Tente reformular ou use uma das sugestões abaixo.`,
     nav: null
   };
 }
 
-
 // ── Lumi UI — Chat flutuante ──────────────────────────────────────────────
-let lumiOpen = false;
+let lumiOpen    = false;
 let lumiGreeted = false;
+let lumiLastModulo = undefined; // rastreia troca de módulo para reset
+
+// Reset completo do estado da Lumi
+function lumiReset() {
+  lumiGreeted = false;
+  lumiOpen    = false;
+  const panel = document.getElementById('lumi-panel');
+  const msgs  = document.getElementById('lumi-messages');
+  const input = document.getElementById('lumi-input');
+  const suggs = document.getElementById('lumi-suggestions');
+  const btn   = document.getElementById('lumi-send-btn');
+  if (panel)  panel.classList.remove('open');
+  if (msgs)   msgs.innerHTML = '';
+  if (input)  { input.value = ''; }
+  if (btn)    btn.disabled = true;
+  if (suggs)  suggs.style.display = 'flex'; // mostrar sugestões novamente
+}
 
 function lumiToggle() {
   lumiOpen = !lumiOpen;
@@ -1229,7 +1188,7 @@ function lumiToggle() {
       const nome = state.currentUser?.name?.split(' ')[0] || '';
       setTimeout(() => {
         lumiAddBotMsg(
-          `Olá${nome ? ', ' + nome : ''}! Sou a Lumi, assistente do GestAus. Posso te ajudar com pendências, ausências, navegação pelos módulos e muito mais. Como posso ajudar hoje?`
+          `Olá${nome ? ', <strong>' + nome + '</strong>' : ''}! Sou a Lumi, assistente do GestAus.<br>Como posso te ajudar hoje?`
         );
       }, 180);
     }
@@ -3074,8 +3033,16 @@ function render() {
   const lumiFab   = document.getElementById('lumi-fab');
   const lumiPanel = document.getElementById('lumi-panel');
   if (lumiFab) lumiFab.style.display   = state.currentUser ? 'flex' : 'none';
-  if (lumiPanel) { if (!state.currentUser) { lumiPanel.classList.remove('open'); lumiOpen = false; } }
-  if (!state.currentUser) { app.innerHTML = viewLogin(); return; }
+  if (!state.currentUser) {
+    if (typeof lumiReset === 'function') lumiReset();
+    app.innerHTML = viewLogin(); return;
+  }
+  // Reset da Lumi ao trocar de módulo ou contexto
+  const _lumiCtx = state.moduloAtivo + '|' + (state.currentUser?.id || '');
+  if (typeof lumiReset === 'function' && lumiLastModulo !== undefined && lumiLastModulo !== _lumiCtx) {
+    lumiReset();
+  }
+  lumiLastModulo = _lumiCtx;
   // Portal — interceptar para todos os perfis
   if (state.moduloAtivo === null) { app.innerHTML = viewPortalPeople(); return; }
   if (state.moduloAtivo === 'mov') { app.innerHTML = viewModuloMOV(); return; }
