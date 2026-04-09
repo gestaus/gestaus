@@ -249,7 +249,7 @@
      ══════════════════════════════════════════ */
 
   /* Botão flutuante */
-  #lumi-fab{position:fixed;bottom:28px;right:28px;z-index:1000;width:56px;height:56px;border-radius:50%;background:#fff;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.14),0 1px 6px rgba(0,0,0,.08);padding:0;transition:transform .2s ease,box-shadow .2s ease;display:flex;align-items:center;justify-content:center}
+  #lumi-fab{position:fixed;bottom:28px;right:28px;z-index:1000;width:56px;height:56px;border-radius:50%;background:#fff;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.14),0 1px 6px rgba(0,0,0,.08);padding:0;transition:transform .2s ease,box-shadow .2s ease;display:none;align-items:center;justify-content:center}
   #lumi-fab:hover{transform:scale(1.08);box-shadow:0 8px 28px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.1)}
   #lumi-fab:active{transform:scale(.96)}
   .lumi-fab-badge{position:absolute;top:2px;right:2px;width:14px;height:14px;border-radius:50%;background:#ef4444;border:2px solid #fff;display:none}
@@ -2762,6 +2762,11 @@ function viewUsuarios() {
 // ══════════════════════════════════════════
 function render() {
   const app = document.getElementById('app');
+  // Lumi FAB: visível apenas quando logado
+  const lumiFab   = document.getElementById('lumi-fab');
+  const lumiPanel = document.getElementById('lumi-panel');
+  if (lumiFab) lumiFab.style.display   = state.currentUser ? 'flex' : 'none';
+  if (lumiPanel) { if (!state.currentUser) { lumiPanel.classList.remove('open'); lumiOpen = false; } }
   if (!state.currentUser) { app.innerHTML = viewLogin(); return; }
   // Portal — interceptar para todos os perfis
   if (state.moduloAtivo === null) { app.innerHTML = viewPortalPeople(); return; }
