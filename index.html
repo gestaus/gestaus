@@ -762,7 +762,7 @@ function viewSidebar() {
         </div>
         <div>
           <div class="brand-name">GestAus</div>
-          <div class="brand-sub">Gestão de Disponibilidade</div>
+          <div class="brand-sub">Disponibilidade PJ</div>
         </div>
       </div>
     </div>
@@ -840,6 +840,7 @@ function viewDashboard() {
     const pct = Math.min(100, Math.round((saldo.usados/saldo.diasCiclo)*100));
     const barCls = pct>=90?'progress-red':pct>=70?'progress-amber':'progress-green';
     return `<div id="content">
+      <div class="breadcrumb"><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">GestAus</span><span class="breadcrumb-sep">›</span><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">Portal</span><span class="breadcrumb-sep">›</span><span style="color:var(--text2)">Disponibilidade PJ</span><span class="breadcrumb-sep">›</span><span>Dashboard</span></div>
       <div class="page-header flex-between">
         <div><div class="page-title">Olá, ${u.name.split(' ')[0]} 👋</div>
         <div class="page-desc">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div></div>
@@ -924,7 +925,7 @@ function viewDashboard() {
     });
     const solsFiltradas=solsBase.slice();
     return `<div id="content">
-      <div class="breadcrumb"><span>Portal People</span><span class="breadcrumb-sep">›</span><span>Disponibilidade PJ</span><span class="breadcrumb-sep">›</span><span>Dashboard</span></div>
+      <div class="breadcrumb"><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">GestAus</span><span class="breadcrumb-sep">›</span><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">Portal</span><span class="breadcrumb-sep">›</span><span style="color:var(--text2)">Disponibilidade PJ</span><span class="breadcrumb-sep">›</span><span>Dashboard</span></div>
       <div class="page-header flex-between">
         <div><div class="page-title">Painel executivo</div>
         <div class="page-desc">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div></div>
@@ -1067,7 +1068,7 @@ function viewMinhas() {
   const u=state.currentUser;
   const sols=state.solicitacoes.filter(s=>s.user_id===u.id);
   return `<div id="content">
-    <div class="breadcrumb"><span onclick="state.view='dashboard';render()">Início</span><span class="breadcrumb-sep">›</span><span>Minhas Ausências</span></div>
+    <div class="breadcrumb"><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">GestAus</span><span class="breadcrumb-sep">›</span><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">Portal</span><span class="breadcrumb-sep">›</span><span onclick="state.view='dashboard';render()" style="cursor:pointer">Disponibilidade PJ</span><span class="breadcrumb-sep">›</span><span>Minhas Ausências</span></div>
     <div class="page-header flex-between" style="margin-bottom:20px">
       <div><div class="page-title">Minhas Ausências</div><div class="page-desc">${sols.length} registro${sols.length!==1?'s':''}</div></div>
       <button class="btn btn-primary" onclick="state.view='nova';render()">+ Nova solicitação</button>
@@ -1136,7 +1137,7 @@ function viewNova() {
   state.newReq.tipo = 'Férias'; /* tipo fixo — sem seletor na UI */
 
   return '<div id="content">'
-    + '<div class="breadcrumb"><span onclick="state.view=\'dashboard\';render()">Início</span><span class="breadcrumb-sep">›</span><span onclick="state.view=\'minhas\';render()">Minhas Ausências</span><span class="breadcrumb-sep">›</span><span>Nova Solicitação</span></div>'
+    + '<div class="breadcrumb"><span onclick="state.moduloAtivo=null;render()">GestAus</span><span class="breadcrumb-sep">›</span><span onclick="state.moduloAtivo=null;render()">Portal</span><span class="breadcrumb-sep">›</span><span onclick="state.view=\'dashboard\';render()">Disponibilidade PJ</span><span class="breadcrumb-sep">›</span><span onclick="state.view=\'minhas\';render()">Minhas Ausências</span><span class="breadcrumb-sep">›</span><span>Nova Solicitação</span></div>'
     + '<div class="page-header" style="margin-bottom:24px">'
     + '<div class="page-title">Nova Solicitação de Ausência</div>'
     + '<div class="page-desc">Ausência programada</div>'
@@ -1211,7 +1212,7 @@ function viewAprovacoes() {
   if(filtroFim) pendentes=pendentes.filter(s=>s.data_fim<=filtroFim);
   const totalPendentes=solsDaArea.filter(s=>s.status==='Pendente').length;
   return `<div id="content">
-    <div class="breadcrumb"><span onclick="state.view='dashboard';render()">Início</span><span class="breadcrumb-sep">›</span><span>Aprovação do Gestor</span></div>
+    <div class="breadcrumb"><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">GestAus</span><span class="breadcrumb-sep">›</span><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">Portal</span><span class="breadcrumb-sep">›</span><span onclick="state.view='dashboard';render()" style="cursor:pointer">Disponibilidade PJ</span><span class="breadcrumb-sep">›</span><span>Aprovação do Gestor</span></div>
     <div class="page-header"><div class="page-title">Aprovação do Gestor${u.role==='gestor'?' — '+(u.departamento||u.squad):''}</div>
     <div class="page-desc">${totalPendentes} pendente${totalPendentes!==1?'s':''}</div></div>
     <div class="card mb-4" style="padding:14px 16px">
@@ -1277,7 +1278,7 @@ function viewEquipe() {
   const colabsDaArea=getColaboradoresDaArea(u);
   const areaLabel=u.role==='gestor'?` — ${u.departamento||u.squad}`:u.role==='admin'?' — todas as áreas':'';
   return `<div id="content">
-    <div class="breadcrumb"><span onclick="state.view='dashboard';render()">Início</span><span class="breadcrumb-sep">›</span><span>Equipe</span></div>
+    <div class="breadcrumb"><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">GestAus</span><span class="breadcrumb-sep">›</span><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">Portal</span><span class="breadcrumb-sep">›</span><span onclick="state.view='dashboard';render()" style="cursor:pointer">Disponibilidade PJ</span><span class="breadcrumb-sep">›</span><span>Equipe</span></div>
     <div class="page-header"><div class="page-title">Equipe${areaLabel}</div>
     <div class="page-desc">${colabsDaArea.length} colaborador${colabsDaArea.length!==1?'es':''}</div></div>
     <div style="display:flex;flex-direction:column;gap:10px">
@@ -1385,7 +1386,7 @@ function viewPeople() {
   return `<div id="content">
     <div class="page-header flex-between" style="margin-bottom:24px">
       <div>
-        <div class="breadcrumb"><span onclick="state.view='dashboard';render()">Início</span><span class="breadcrumb-sep">›</span><span>Confirmação do People</span></div>
+        <div class="breadcrumb"><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">GestAus</span><span class="breadcrumb-sep">›</span><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">Portal</span><span class="breadcrumb-sep">›</span><span onclick="state.view='dashboard';render()" style="cursor:pointer">Disponibilidade PJ</span><span class="breadcrumb-sep">›</span><span>Confirmação do People</span></div>
         <div class="page-title">Confirmação do People</div>
         <div class="page-desc">${pendenteCiencia.length} aguardando · ${comCiencia.length} confirmada${comCiencia.length!==1?'s':''}</div>
       </div>
@@ -1515,67 +1516,113 @@ function viewPeople() {
 // ══════════════════════════════════════════
 function viewPortalPeople() {
   const u = state.currentUser;
-  const pendentes = state.solicitacoes.filter(s => s.status === 'Pendente').length;
-  const movPendentes = state.movSolicitacoes.filter(s => s.status === 'Pendente').length;
+  const pendentes    = state.solicitacoes.filter(s => s.status === 'Pendente').length;
+  const movPendentes = state.movSolicitacoes.filter(s => s.status === 'Pendente' || s.status === 'Enviada').length;
+  const hoje = new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
-  const cardMod = (id, icon, titulo, desc, badge, cor, ativo) => `
-    <div onclick="state.moduloAtivo='${id}';state.view='dashboard';render()"
-      style="background:var(--surface);border:1.5px solid ${ativo?'var(--accent)':'var(--border)'};border-radius:14px;padding:28px 24px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden"
-      onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-2px)'"
-      onmouseout="this.style.borderColor='${ativo?'var(--accent)':'var(--border)'}';this.style.transform='translateY(0)'">
-      <div style="width:44px;height:44px;border-radius:10px;background:${cor};display:flex;align-items:center;justify-content:center;margin-bottom:16px">
+  // ── helpers ──────────────────────────────────────────────────────────────
+  const modCard = (id, icon, title, desc, badge, color, available) => `
+    <div onclick="${available ? `state.moduloAtivo='${id}';state.view='dashboard';render()` : ''}"
+      style="background:var(--surface);border:1.5px solid ${available?'var(--border)':'var(--border)'};border-radius:12px;padding:22px 20px;cursor:${available?'pointer':'default'};transition:all .15s;position:relative;overflow:hidden;opacity:${available?1:.65}"
+      onmouseover="${available?`this.style.borderColor='${color}';this.style.transform='translateY(-2px)'`:''}"
+      onmouseout="${available?`this.style.borderColor='var(--border)';this.style.transform='translateY(0)'`:''}">
+      <div style="width:38px;height:38px;border-radius:9px;background:${color}18;display:flex;align-items:center;justify-content:center;margin-bottom:14px;border:1px solid ${color}30">
         ${icon}
       </div>
-      <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">${titulo}</div>
-      <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:${badge?'14px':'0'}">${desc}</div>
-      ${badge ? `<span class="badge badge-warn" style="font-size:11px">${badge} pendente${badge>1?'s':''}</span>` : ''}
-      <div style="position:absolute;bottom:16px;right:16px;font-size:11px;color:var(--accent);font-weight:500">Acessar →</div>
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">${title}</div>
+      <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:${badge||!available?'10px':'0'}">${desc}</div>
+      ${badge ? `<span style="display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;background:#fef3c7;color:#92400e">${badge} pendente${badge>1?'s':''}</span>` : ''}
+      ${!available ? `<span style="display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:500;background:var(--surface2);color:var(--text3)">Em breve</span>` : ''}
+      ${available ? `<div style="position:absolute;bottom:14px;right:14px;font-size:11px;color:${color};font-weight:500;opacity:.8">Acessar →</div>` : ''}
     </div>`;
 
-  const iconAus = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/></svg>';
-  const iconMov = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="23 21 23 19 19 19"/><polyline points="23 15 19 19 23 23"/></svg>';
+  // ── ícones ────────────────────────────────────────────────────────────────
+  const icoAus    = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a5c3a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/></svg>`;
+  const icoContr  = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a5c3a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`;
+  const icoNF     = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a5c3a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;
+  const icoCLT    = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+  const icoMOV    = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="23 21 23 19 19 19"/><polyline points="23 15 19 19 23 23"/></svg>`;
+  const icoOnb    = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0369a1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.28h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6.09 6.09l1.88-1.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`;
 
-  return `
-  <div style="min-height:100vh;background:var(--bg);padding:clamp(20px,5vw,40px) clamp(16px,4vw,32px)">
-    <div style="max-width:800px;margin:0 auto;width:100%;box-sizing:border-box">
+  // permissões por perfil
+  const canMOV  = u.role==='people'||u.role==='admin'||u.role==='gestor';
+  const isAdmin = u.role==='admin'||u.role==='people';
 
-      <!-- Header do portal -->
-      <div style="margin-bottom:40px">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
-          <div style="width:36px;height:36px;border-radius:9px;background:var(--accent);display:flex;align-items:center;justify-content:center">
-            <svg width="18" height="18" viewBox="0 0 56 56" fill="none"><rect x="13" y="16" width="30" height="26" rx="4" fill="none" stroke="white" stroke-width="2.5"/><line x1="13" y1="23" x2="43" y2="23" stroke="white" stroke-width="2"/><line x1="20" y1="13" x2="20" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><line x1="36" y1="13" x2="36" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><polyline points="21,33 26,38 35,29" stroke="#7ee8a2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
-          </div>
-          <div>
-            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px">Portal People</div>
-            <div style="font-size:20px;font-weight:600;color:var(--text);letter-spacing:-.3px">Olá, ${u.name.split(' ')[0]} 👋</div>
-          </div>
+  return `<div style="min-height:100vh;background:var(--bg);padding:clamp(20px,5vw,40px) clamp(16px,4vw,32px)">
+    <div style="max-width:860px;margin:0 auto;width:100%;box-sizing:border-box">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <div style="width:32px;height:32px;border-radius:8px;background:#1a5c3a;display:flex;align-items:center;justify-content:center">
+          <svg width="16" height="16" viewBox="0 0 56 56" fill="none"><rect x="13" y="16" width="30" height="26" rx="4" fill="none" stroke="white" stroke-width="2.5"/><line x1="13" y1="23" x2="43" y2="23" stroke="white" stroke-width="2"/><line x1="20" y1="13" x2="20" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><line x1="36" y1="13" x2="36" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/><polyline points="21,33 26,38 35,29" stroke="#7ee8a2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
         </div>
-        <div style="font-size:13px;color:var(--text3)">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · Selecione um módulo para continuar</div>
+        <div>
+          <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px">GestAus · Portal</div>
+          <div style="font-size:18px;font-weight:600;color:var(--text);letter-spacing:-.3px">Olá, ${u.name.split(' ')[0]} 👋</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:32px">${hoje}</div>
+
+      <!-- Grupo: Gestão de Prestadores (PJ) -->
+      <div style="margin-bottom:28px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <div style="width:3px;height:16px;background:#1a5c3a;border-radius:2px"></div>
+          <span style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.7px">Gestão de Prestadores · PJ</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+          ${modCard('ausencias', icoAus, 'Disponibilidade PJ', 'Ausências programadas, aprovações e confirmações.', pendentes, '#1a5c3a', true)}
+          ${modCard('contratos', icoContr, 'Contratos PJ', 'Gestão de contratos e vigências dos prestadores.', 0, '#1a5c3a', false)}
+          ${modCard('nf', icoNF, 'Notas Fiscais', 'Emissão e controle de notas fiscais dos prestadores.', 0, '#1a5c3a', false)}
+        </div>
       </div>
 
-      <!-- Grid de módulos -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:28px">
-        ${cardMod('ausencias', iconAus, 'Gestão de Disponibilidade PJ',
-          'Controle de ausências programadas, aprovações e confirmações da equipe PJ.',
-          pendentes, '#1a5c3a', false)}
-        ${(u.role==='people'||u.role==='admin'||u.role==='gestor') ? cardMod('mov', iconMov, 'Movimentação de Pessoas',
-          'Abertura de vagas, movimentações de área, mudanças de gestor e outras solicitações de RH.',
-          movPendentes, '#1e40af', false) : ''}
-      </div>
+      <!-- Grupo: Movimentação de Pessoas -->
+      ${canMOV ? `
+      <div style="margin-bottom:28px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <div style="width:3px;height:16px;background:#1e40af;border-radius:2px"></div>
+          <span style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.7px">Movimentação de Pessoas</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+          ${modCard('mov', icoMOV, 'MOV', 'Requisições, desligamentos e alterações de cargo/área.', movPendentes, '#1e40af', true)}
+        </div>
+      </div>` : ''}
 
-      <!-- Rodapé discreto -->
-      <div style="text-align:center;font-size:11px;color:var(--text3);padding-top:20px;border-top:1px solid var(--border)">
-        GestAus · Portal People · ${new Date().getFullYear()}
-        <span style="margin:0 8px">·</span>
-        <span onclick="logout()" style="cursor:pointer;color:var(--danger)">Sair</span>
+      <!-- Grupo: Gestão CLT -->
+      ${isAdmin ? `
+      <div style="margin-bottom:28px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <div style="width:3px;height:16px;background:#7c3aed;border-radius:2px"></div>
+          <span style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.7px">Gestão CLT</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+          ${modCard('clt', icoCLT, 'Gestão CLT', 'Férias, folgas e controle de jornada de colaboradores CLT.', 0, '#7c3aed', false)}
+        </div>
+      </div>` : ''}
+
+      <!-- Grupo: Jornada do Colaborador -->
+      ${isAdmin ? `
+      <div style="margin-bottom:28px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <div style="width:3px;height:16px;background:#0369a1;border-radius:2px"></div>
+          <span style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.7px">Jornada do Colaborador</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+          ${modCard('onboarding', icoOnb, 'Onboarding', 'Integração de novos colaboradores e prestadores.', 0, '#0369a1', false)}
+          ${modCard('offboarding', icoOnb, 'Offboarding', 'Processo de desligamento e encerramento de jornada.', 0, '#0369a1', false)}
+        </div>
+      </div>` : ''}
+
+      <!-- Rodapé -->
+      <div style="text-align:center;font-size:11px;color:var(--text3);padding-top:20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:12px">
+        <span>GestAus · Portal People · ${new Date().getFullYear()}</span>
+        <span style="opacity:.3">·</span>
+        <span onclick="logout()" style="cursor:pointer;color:var(--danger);opacity:.7">Sair</span>
       </div>
     </div>
   </div>`;
 }
 
-// ══════════════════════════════════════════
-// MÓDULO MOV — Movimentação de Pessoas
-// ══════════════════════════════════════════
 
 const MOV_TIPOS = [
   { id:'requisicao', label:'Requisição de Pessoal', desc:'Abertura de nova vaga' },
@@ -2076,7 +2123,7 @@ function viewModuloMOV() {
     ${sidebarMOV}
     <div id="main" style="flex:1;overflow-y:auto">
       <div id="topbar">
-        <div style="font-size:13px;font-weight:500;color:var(--text2)">🔄 Movimentação de Pessoas</div>
+        <div class="breadcrumb" style="margin-bottom:0"><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer;color:var(--text3)">GestAus</span><span class="breadcrumb-sep">›</span><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer;color:var(--text3)">Portal</span><span class="breadcrumb-sep">›</span><span style="font-weight:500;color:var(--text2)">MOV</span></div>
         <button class="btn btn-secondary btn-sm" onclick="state.moduloAtivo=null;render()">← Portal People</button>
       </div>
       ${main}
@@ -2123,7 +2170,7 @@ function viewCalendario() {
     return (s.data_inicio.slice(0,7)===m||s.data_fim.slice(0,7)===m)&&['Aprovada','Realizada','Pendente'].includes(s.status);
   });
   return `<div id="content">
-    <div class="breadcrumb"><span onclick="state.view='dashboard';render()">Início</span><span class="breadcrumb-sep">›</span><span>Calendário</span></div>
+    <div class="breadcrumb"><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">GestAus</span><span class="breadcrumb-sep">›</span><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">Portal</span><span class="breadcrumb-sep">›</span><span onclick="state.view='dashboard';render()" style="cursor:pointer">Disponibilidade PJ</span><span class="breadcrumb-sep">›</span><span>Calendário</span></div>
     <div class="page-header"><div class="page-title">Calendário de disponibilidade</div><div class="page-desc">${monthName}</div></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;align-items:start">
       <div class="card">
@@ -2198,7 +2245,7 @@ function viewUsuarios() {
   return `<div id="content">
     <div class="page-header flex-between">
       <div>
-        <div class="breadcrumb"><span onclick="state.view='dashboard';render()">Início</span><span class="breadcrumb-sep">›</span><span>Usuários</span></div>
+        <div class="breadcrumb"><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">GestAus</span><span class="breadcrumb-sep">›</span><span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">Portal</span><span class="breadcrumb-sep">›</span><span onclick="state.view='dashboard';render()" style="cursor:pointer">Disponibilidade PJ</span><span class="breadcrumb-sep">›</span><span>Usuários</span></div>
         <div class="page-title">Gestão de Usuários</div>
         <div class="page-desc">${state.users.length} usuário${state.users.length!==1?'s':''} · ${state.users.filter(u=>u.status==='inativo').length} inativo${state.users.filter(u=>u.status==='inativo').length!==1?'s':''}</div>
       </div>
@@ -2356,6 +2403,16 @@ function render() {
   // Portal — interceptar para todos os perfis
   if (state.moduloAtivo === null) { app.innerHTML = viewPortalPeople(); return; }
   if (state.moduloAtivo === 'mov') { app.innerHTML = viewModuloMOV(); return; }
+  // helpers de breadcrumb disponíveis globalmente
+  window._bc = (modulo, pagina) =>
+    `<div class="breadcrumb">
+      <span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">GestAus</span>
+      <span class="breadcrumb-sep">›</span>
+      <span onclick="state.moduloAtivo=null;render()" style="cursor:pointer">Portal</span>
+      <span class="breadcrumb-sep">›</span>
+      <span style="color:var(--text2)">${modulo}</span>
+      ${pagina?`<span class="breadcrumb-sep">›</span><span>${pagina}</span>`:''}
+    </div>`;
   // moduloAtivo === 'ausencias' — cai no fluxo normal abaixo
   const viewMap = { dashboard:viewDashboard, minhas:viewMinhas, nova:viewNova, aprovacoes:viewAprovacoes, equipe:viewEquipe, calendario:viewCalendario, assistente:viewAssistente, usuarios:viewUsuarios, people:viewPeople };
   const viewFn = viewMap[state.view] || viewDashboard;
