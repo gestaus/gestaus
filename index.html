@@ -1902,7 +1902,10 @@ function viewAprovacoes() {
             <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px">Saldo após</div><div style="font-size:12px;font-weight:500;margin-top:2px;color:${(getSaldo(s.user_id).saldo-s.dias)<0?'var(--danger)':'var(--text)'}">${getSaldo(s.user_id).saldo-s.dias}d</div></div>
           </div>
           ${s.obs?`<div style="font-size:12px;color:var(--text2);margin-bottom:12px;padding:8px 10px;background:var(--surface2);border-radius:6px;border-left:2px solid var(--border)">${s.obs}</div>`:''}
-          <div class="flex gap-2" style="justify-content:flex-end">`;
+          <div class="flex gap-2" style="justify-content:flex-end">
+            ${s.status==='Pendente'?`<button class="btn btn-primary btn-sm" onclick="state.approvalModal=${s.id};state.approvalObs='';render()">Revisar →</button>`:`<span style="font-size:12px;color:var(--text3)">${s.status}</span>`}
+          </div>
+        </div>`;
       }).join('')}
     </div>`}
     ${state.approvalModal?`<div class="modal-overlay" onclick="if(event.target===this){state.approvalModal=null;render()}">
