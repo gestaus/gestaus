@@ -231,6 +231,8 @@
   .portal-section-bar{width:3px;height:18px;border-radius:2px;flex-shrink:0}
   .portal-section-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px}
   .portal-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .portal-grid-3{grid-template-columns:repeat(3,1fr)}
+  .portal-card-placeholder{background:transparent;border:1.5px dashed var(--border);border-radius:14px;min-height:180px;opacity:.35}
   .portal-card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:28px 24px 52px;position:relative;display:flex;flex-direction:column;min-height:180px;box-shadow:var(--shadow);transition:border-color .18s,transform .18s,box-shadow .18s}
   .portal-card-active{cursor:pointer}
   .portal-card-disabled{opacity:.58;cursor:default}
@@ -238,9 +240,9 @@
   .portal-footer-sep{opacity:.3}
   .portal-footer-logout{cursor:pointer;color:var(--danger);opacity:.7}
   .portal-footer-logout:hover{opacity:1}
-  @media(max-width:1280px){.portal-grid{grid-template-columns:repeat(3,1fr)}}
-  @media(max-width:960px){.portal-grid{grid-template-columns:repeat(2,1fr)}}
-  @media(max-width:560px){.portal-grid{grid-template-columns:1fr}.portal-date{padding-left:0}.portal-inner{padding:20px 16px}}
+  @media(max-width:1280px){.portal-grid{grid-template-columns:repeat(3,1fr)}.portal-grid-3{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:960px){.portal-grid{grid-template-columns:repeat(2,1fr)}.portal-grid-3{grid-template-columns:repeat(2,1fr)}.portal-card-placeholder{display:none}}
+  @media(max-width:560px){.portal-grid{grid-template-columns:1fr}.portal-grid-3{grid-template-columns:1fr}.portal-date{padding-left:0}.portal-inner{padding:20px 16px}.portal-card-placeholder{display:none}}
   /* ── App layout fix ── */
   #app{display:flex;min-height:100vh;overflow-x:hidden}
   .app-shell{display:flex;width:100%;min-height:100vh;overflow-x:hidden}
@@ -2220,7 +2222,7 @@ function viewPortalPeople() {
           <div class="portal-section-bar" style="background:#1a5c3a"></div>
           <span class="portal-section-label">Gestão de Pessoas</span>
         </div>
-        <div class="portal-grid">
+        <div class="portal-grid portal-grid-3">
           ${modCard('ausencias', icoAus, 'Disponibilidade', 'Ausências programadas, aprovações e confirmações.', pendentes, '#1a5c3a', true)}
           ${modCard('contratos', icoContr, 'Contratos PJ', 'Gestão de contratos e vigências dos prestadores.', 0, '#1a5c3a', false)}
           ${modCard('nf', icoNF, 'Notas Fiscais', 'Emissão e controle de notas fiscais dos prestadores.', 0, '#1a5c3a', false)}
@@ -2234,8 +2236,10 @@ function viewPortalPeople() {
           <div class="portal-section-bar" style="background:#1e40af"></div>
           <span class="portal-section-label">Movimentação de Pessoas</span>
         </div>
-        <div class="portal-grid">
+        <div class="portal-grid portal-grid-3">
           ${modCard('mov', icoMOV, 'MOV', 'Requisições, desligamentos e alterações de cargo/área.', movPendentes, '#1e40af', true)}
+          <div class="portal-card-placeholder"></div>
+          <div class="portal-card-placeholder"></div>
         </div>
       </div>` : ''}
 
@@ -2246,8 +2250,10 @@ function viewPortalPeople() {
           <div class="portal-section-bar" style="background:#7c3aed"></div>
           <span class="portal-section-label">Gestão CLT</span>
         </div>
-        <div class="portal-grid">
+        <div class="portal-grid portal-grid-3">
           ${modCard('clt', icoCLT, 'Gestão CLT', 'Férias, folgas e controle de jornada de colaboradores CLT.', 0, '#7c3aed', false)}
+          <div class="portal-card-placeholder"></div>
+          <div class="portal-card-placeholder"></div>
         </div>
       </div>` : ''}
 
@@ -2258,9 +2264,10 @@ function viewPortalPeople() {
           <div class="portal-section-bar" style="background:#0369a1"></div>
           <span class="portal-section-label">Jornada do Colaborador</span>
         </div>
-        <div class="portal-grid">
+        <div class="portal-grid portal-grid-3">
           ${modCard('onboarding', icoOnb, 'Onboarding', 'Integração de novos colaboradores e prestadores.', 0, '#0369a1', false)}
           ${modCard('offboarding', icoOnb, 'Offboarding', 'Processo de desligamento e encerramento de jornada.', 0, '#0369a1', false)}
+          <div class="portal-card-placeholder"></div>
         </div>
       </div>` : ''}
 
