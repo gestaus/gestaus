@@ -651,8 +651,7 @@ async function aprovar(id) {
     await dbAtualizarSolicitacao(id, {
       status: 'Aprovada',
       obs: state.approvalObs || 'Aprovado',
-      approved_by: state.currentUser?.id || null,          // quem aprovou
-      approved_at: new Date().toISOString(),                // quando aprovou
+      // approved_by / approved_at: adicionar após criar as colunas no Supabase
     });
     state.approvalModal = null; state.approvalObs = '';
     showToast('Solicitação aprovada com sucesso ✓');
