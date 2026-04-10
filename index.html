@@ -2216,19 +2216,6 @@ function viewPortalPeople() {
       </div>
       <div class="portal-date">${hoje}</div>
 
-      <!-- Grupo: Gestão de Pessoas -->
-      <div class="portal-section">
-        <div class="portal-section-header">
-          <div class="portal-section-bar" style="background:#1a5c3a"></div>
-          <span class="portal-section-label">Gestão de Pessoas</span>
-        </div>
-        <div class="portal-grid portal-grid-3">
-          ${modCard('ausencias', icoAus, 'Disponibilidade', 'Ausências programadas, aprovações e confirmações.', pendentes, '#1a5c3a', true)}
-          ${modCard('contratos', icoContr, 'Contratos PJ', 'Gestão de contratos e vigências dos prestadores.', 0, '#1a5c3a', false)}
-          ${modCard('nf', icoNF, 'Notas Fiscais', 'Emissão e controle de notas fiscais dos prestadores.', 0, '#1a5c3a', false)}
-        </div>
-      </div>
-
       <!-- Grupo: Movimentação de Pessoas -->
       ${canMOV ? `
       <div class="portal-section">
@@ -2242,6 +2229,19 @@ function viewPortalPeople() {
           <div class="portal-card-placeholder"></div>
         </div>
       </div>` : ''}
+
+      <!-- Grupo: Gestão de Pessoas -->
+      <div class="portal-section">
+        <div class="portal-section-header">
+          <div class="portal-section-bar" style="background:#1a5c3a"></div>
+          <span class="portal-section-label">Gestão de Pessoas</span>
+        </div>
+        <div class="portal-grid portal-grid-3">
+          ${modCard('ausencias', icoAus, 'Disponibilidade', 'Ausências programadas, aprovações e confirmações.', pendentes, '#1a5c3a', true)}
+          ${modCard('contratos', icoContr, 'Contratos PJ', 'Gestão de contratos e vigências dos prestadores.', 0, '#1a5c3a', false)}
+          ${modCard('nf', icoNF, 'Notas Fiscais', 'Emissão e controle de notas fiscais dos prestadores.', 0, '#1a5c3a', false)}
+        </div>
+      </div>
 
       <!-- Grupo: Gestão CLT -->
       ${(isAdmin||isPeople) ? `
