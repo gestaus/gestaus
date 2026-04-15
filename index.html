@@ -486,6 +486,9 @@ let state = {
   adminDashUser: '', adminDashDept: '', adminDashStatus: '', adminDashTipo: '',
   aiLoading: false, aiResponse: '',
   peopleSelected: [], peopleFiltroUser: '', peopleFiltroInicio: '', peopleFiltroFim: '',
+  // filtros bloco equipe
+  eqFiltroColab: '', eqFiltroSit: '',
+  eqAdmFiltroDepto: '', eqAdmFiltroColab: '', eqAdmFiltroSit: '',
   // portal people
   moduloAtivo: null,       // null = portal | 'ausencias' | 'mov'
   // módulo MOV
@@ -1533,7 +1536,7 @@ function viewSidebar() {
         </div>
         <div style="min-width:0">
           <div class="brand-name">GestAus</div>
-          <div class="brand-sub">Portal People</div>
+          <div class="brand-sub">PJ — Gestão de Pessoas</div>
         </div>
       </div>
     </div>
@@ -1548,40 +1551,36 @@ function viewSidebar() {
 
     <nav style="overflow-y:auto;flex:1;padding-bottom:8px">
 
-      <div class="nav-section">Início</div>
+      <!-- ── PRINCIPAL ── -->
+      <div class="nav-section">Principal</div>
       ${ni('dashboard', ico.dashboard, 'Dashboard')}
 
-      <div class="nav-section">Movimentações</div>
-      ${(state.currentUser.role==='people'||state.currentUser.role==='admin'||state.currentUser.role==='gestor') ? ni('_mov_portal', ico.gestao, 'MOV') : ''}
+      <!-- ── AUSÊNCIAS ── -->
+      <div class="nav-section">Ausências</div>
+      ${ni('nova',   ico.nova,   'Nova Solicitação')}
+      ${ni('minhas', ico.minhas, 'Minhas Ausências')}
+      ${(u.role==='gestor'||u.role==='admin') ? ni('aprovacoes', ico.aprovacao, 'Aprovação do Gestor', pending||'') : ''}
+      ${(u.role==='people'||u.role==='admin') ? ni('people', ico.people, 'Confirmação do People',
+          (() => { const badgeN = u.role==='people' ? peopleCount : (u.role==='admin' ? peopleCount : 0); return badgeN||''; })()
+        ) : ''}
 
-      <div class="nav-section">Gestão</div>
-      ${ni('nova',      ico.nova,      'Nova Solicitação')}
-      ${ni('minhas',    ico.minhas,    'Minhas Ausências')}
-      ${ni('calendario',ico.calendario,'Calendário')}
-      ${ni('equipe',    ico.equipe,    'Equipe')}
-
-      ${(u.role==='gestor'||u.role==='admin'||u.role==='people') ? `
-      <div class="nav-section">Acompanhamento</div>
-      <div class="nav-parent ${subCls}" onclick="state.menuAusenciasOpen=!state.menuAusenciasOpen;render()">
-        <span class="nav-icon" style="opacity:.7">${ico.gestao}</span>
-        <span>Gestão de Ausências</span>
-        ${(() => {
-        const badgeN = u.role==='people' ? peopleCount : (pending + (u.role==='admin' ? peopleCount : 0));
-        return badgeN>0 ? `<span class="nav-badge">${badgeN}</span>` : '';
-      })()}
-        <span class="nav-chevron ${subCls}">${ico.chevron}</span>
+      <!-- ── OPERACIONAL ── -->
+      <div class="nav-section">Operacional</div>
+      <div class="nav-item nav-item-disabled" style="opacity:.45;cursor:default">
+        <span class="nav-icon">${ico.minhas}</span>
+        <span>Contratos PJ</span>
+        <span class="nav-badge" style="background:var(--surface2);color:var(--text3);font-size:9px">Breve</span>
       </div>
-      <div class="nav-sub ${subCls}">
-        ${(u.role==='gestor'||u.role==='admin') ? ns('aprovacoes', ico.aprovacao, 'Aprovação do Gestor', pending||'') : ''}
-        ${(u.role==='people'||u.role==='admin') ? ns('people', ico.people, 'Confirmação do People', peopleCount||'') : ''}
-      </div>` : ''}
+      <div class="nav-item nav-item-disabled" style="opacity:.45;cursor:default">
+        <span class="nav-icon">${ico.minhas}</span>
+        <span>Notas Fiscais</span>
+        <span class="nav-badge" style="background:var(--surface2);color:var(--text3);font-size:9px">Breve</span>
+      </div>
 
+      <!-- ── ADMINISTRAÇÃO (admin only) ── -->
       ${u.role==='admin' ? `
       <div class="nav-section">Administração</div>
       ${ni('usuarios', ico.usuarios, 'Usuários')}` : ''}
-
-      <div class="nav-section">Inteligência</div>
-      ${ni('assistente', ico.assistente, 'Assistente IA')}
 
     </nav>
 
@@ -1718,6 +1717,81 @@ function viewDashboard() {
         <div class="stat-card"><div class="stat-label">Limite crítico</div><div class="stat-value ${criticos>0?'stat-red':'stat-green'}">${criticos}</div><div class="stat-sub">prestador${criticos!==1?'es':''} ≥90% do limite</div></div>
       </div>
 
+      <!-- ── BLOCO EQUIPE ADMIN ── -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="flex-between" style="margin-bottom:14px">
+          <div>
+            <div class="card-title">Equipe</div>
+            <div class="card-sub">${todosUsers.length} colaborador${todosUsers.length!==1?'es':''}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;padding:12px;background:var(--surface2);border-radius:var(--radius-sm)">
+          <div>
+            <label>Departamento</label>
+            <select onchange="state.eqAdmFiltroDepto=this.value;state.eqAdmFiltroColab='';render()">
+              <option value="">Todos</option>
+              ${depts.map(function(d){ return '<option value="'+d+'"'+(state.eqAdmFiltroDepto===d?' selected':'')+'>'+d+'</option>'; }).join('')}
+            </select>
+          </div>
+          <div>
+            <label>Colaborador</label>
+            <select onchange="state.eqAdmFiltroColab=this.value;render()">
+              <option value="">Todos</option>
+              ${(state.eqAdmFiltroDepto ? todosUsers.filter(function(x){ return (x.departamento||x.squad)===state.eqAdmFiltroDepto; }) : todosUsers).map(function(x){ return '<option value="'+x.id+'"'+(state.eqAdmFiltroColab===x.id?' selected':'')+'>'+x.name.split(' ')[0]+'</option>'; }).join('')}
+            </select>
+          </div>
+          <div>
+            <label>Situação</label>
+            <select onchange="state.eqAdmFiltroSit=this.value;render()">
+              <option value="">Todas</option>
+              <option value="ok"${state.eqAdmFiltroSit==='ok'?' selected':''}>Dentro do limite</option>
+              <option value="warn"${state.eqAdmFiltroSit==='warn'?' selected':''}>Próximo do limite</option>
+              <option value="crit"${state.eqAdmFiltroSit==='crit'?' selected':''}>Limite crítico</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Colaborador</th><th>Departamento</th><th>Saldo disponível</th><th>Situação</th></tr>
+            </thead>
+            <tbody>
+              ${(function(){
+                var lista = todosUsers.map(function(membUsr){
+                  var membSaldo = getSaldo(membUsr.id);
+                  var membPct   = membSaldo.diasCiclo > 0 ? Math.min(100, Math.round((membSaldo.usados / membSaldo.diasCiclo) * 100)) : 0;
+                  var sitKey    = membPct>=90 ? 'crit' : membPct>=70 ? 'warn' : 'ok';
+                  return { membUsr, membSaldo, membPct, sitKey };
+                });
+                if(state.eqAdmFiltroDepto) lista = lista.filter(function(r){ return (r.membUsr.departamento||r.membUsr.squad)===state.eqAdmFiltroDepto; });
+                if(state.eqAdmFiltroColab) lista = lista.filter(function(r){ return r.membUsr.id===state.eqAdmFiltroColab; });
+                if(state.eqAdmFiltroSit)   lista = lista.filter(function(r){ return r.sitKey===state.eqAdmFiltroSit; });
+                if(lista.length===0) return '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text3);font-size:13px">Nenhum colaborador encontrado</td></tr>';
+                return lista.map(function(r){
+                  var saldoCor  = r.membPct>=90 ? 'var(--danger)' : r.membPct>=70 ? '#f59e0b' : 'var(--accent)';
+                  var situBadge = r.sitKey==='crit'
+                    ? '<span class="badge badge-critical" style="font-size:10px">Limite crítico</span>'
+                    : r.sitKey==='warn'
+                      ? '<span class="badge badge-warn" style="font-size:10px">Próximo do limite</span>'
+                      : '<span class="badge badge-ok" style="font-size:10px">Dentro do limite</span>';
+                  return '<tr>'
+                    + '<td><div class="flex gap-2">'
+                    + '<div class="avatar" style="width:24px;height:24px;font-size:10px">' + (r.membUsr.avatar || r.membUsr.name.slice(0,2).toUpperCase()) + '</div>'
+                    + '<div><div style="font-size:13px;font-weight:500">' + r.membUsr.name.split(' ')[0] + '</div>'
+                    + '<div style="font-size:11px;color:var(--text3)">' + (r.membUsr.funcao || '—') + '</div></div>'
+                    + '</div></td>'
+                    + '<td style="font-size:12px;color:var(--text2)">' + (r.membUsr.departamento||r.membUsr.squad||'—') + '</td>'
+                    + '<td style="font-size:12px;white-space:nowrap"><span style="font-weight:600;color:' + saldoCor + '">' + r.membSaldo.saldo + '</span><span style="color:var(--text3)">/' + r.membSaldo.diasCiclo + 'd</span></td>'
+                    + '<td>' + situBadge + '</td>'
+                    + '</tr>';
+                }).join('');
+              })()}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- ── /BLOCO EQUIPE ADMIN ── -->
+
       <div class="card">
         <div class="flex-between mb-4">
           <div><div class="card-title">Ausências registradas</div>
@@ -1800,6 +1874,85 @@ function viewDashboard() {
       <div class="stat-card"><div class="stat-label">Limite crítico</div><div class="stat-value ${criticos>0?'stat-red':'stat-green'}">${criticos}</div><div class="stat-sub">prestadores ≥90% do limite</div></div>
     </div>
     ${pending>0?`<div class="alert alert-warn" style="display:flex;align-items:center;justify-content:space-between"><span>⚠️ <strong>${pending}</strong> ausência(s) aguardando aprovação.</span><button class="btn btn-secondary btn-sm" onclick="state.view='aprovacoes';render()">Revisar agora →</button></div>`:`<div class="alert alert-success">✅ Nenhuma ausência registrada pendente de aprovação.</div>`}
+
+    <!-- ── BLOCO EQUIPE ── -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="flex-between" style="margin-bottom:14px">
+        <div>
+          <div class="card-title">Equipe</div>
+          <div class="card-sub">${todosIds.length} colaborador${todosIds.length!==1?'es':''} · ${meuDept}</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="state.view='equipe';render()">Ver detalhes →</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;padding:12px;background:var(--surface2);border-radius:var(--radius-sm)">
+        <div>
+          <label>Colaborador</label>
+          <select onchange="state.eqFiltroColab=this.value;render()">
+            <option value="">Todos</option>
+            ${todosIds.map(function(id){ var usr=getUserById(id); return usr ? '<option value="'+id+'"'+(state.eqFiltroColab===id?' selected':'')+'>'+usr.name.split(' ')[0]+'</option>' : ''; }).join('')}
+          </select>
+        </div>
+        <div>
+          <label>Situação</label>
+          <select onchange="state.eqFiltroSit=this.value;render()">
+            <option value="">Todas</option>
+            <option value="ok"${state.eqFiltroSit==='ok'?' selected':''}>Dentro do limite</option>
+            <option value="warn"${state.eqFiltroSit==='warn'?' selected':''}>Próximo do limite</option>
+            <option value="crit"${state.eqFiltroSit==='crit'?' selected':''}>Limite crítico</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Colaborador</th><th>Saldo disponível</th><th>Situação</th><th>Presença</th></tr>
+          </thead>
+          <tbody>
+            ${(function(){
+              var lista = todosIds.map(function(membId){
+                var membUsr   = getUserById(membId);
+                if(!membUsr) return null;
+                var membSaldo = getSaldo(membId);
+                var membPct   = membSaldo.diasCiclo > 0 ? Math.min(100, Math.round((membSaldo.usados / membSaldo.diasCiclo) * 100)) : 0;
+                var sitKey    = membPct>=90 ? 'crit' : membPct>=70 ? 'warn' : 'ok';
+                var hoje3     = new Date().toISOString().slice(0,10);
+                var membAus   = state.solicitacoes.find(function(x){
+                  return x.user_id === membId && ['Aprovada','Realizada'].includes(x.status) && x.data_inicio <= hoje3 && x.data_fim >= hoje3;
+                });
+                return { membId, membUsr, membSaldo, membPct, sitKey, membAus };
+              }).filter(Boolean);
+              if(state.eqFiltroColab) lista = lista.filter(function(r){ return r.membId === state.eqFiltroColab; });
+              if(state.eqFiltroSit)   lista = lista.filter(function(r){ return r.sitKey === state.eqFiltroSit; });
+              if(lista.length===0) return '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text3);font-size:13px">Nenhum colaborador encontrado</td></tr>';
+              return lista.map(function(r){
+                var isEu      = r.membId === u.id;
+                var saldoCor  = r.membPct>=90 ? 'var(--danger)' : r.membPct>=70 ? '#f59e0b' : 'var(--accent)';
+                var situBadge = r.sitKey==='crit'
+                  ? '<span class="badge badge-critical" style="font-size:10px">Limite crítico</span>'
+                  : r.sitKey==='warn'
+                    ? '<span class="badge badge-warn" style="font-size:10px">Próximo do limite</span>'
+                    : '<span class="badge badge-ok" style="font-size:10px">Dentro do limite</span>';
+                var presBadge = r.membAus
+                  ? '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;background:#fef3c7;color:#92400e">Ausente</span>'
+                  : '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;background:#d1fae5;color:#065f46">Ativo</span>';
+                return '<tr>'
+                  + '<td><div class="flex gap-2">'
+                  + '<div class="avatar" style="width:24px;height:24px;font-size:10px">' + (r.membUsr.avatar || r.membUsr.name.slice(0,2).toUpperCase()) + '</div>'
+                  + '<div><div style="font-size:13px;font-weight:500">' + r.membUsr.name.split(' ')[0] + (isEu ? ' <span style="font-size:10px;color:var(--text3)">(eu)</span>' : '') + '</div>'
+                  + '<div style="font-size:11px;color:var(--text3)">' + (r.membUsr.funcao || '—') + '</div></div>'
+                  + '</div></td>'
+                  + '<td style="font-size:12px;white-space:nowrap"><span style="font-weight:600;color:' + saldoCor + '">' + r.membSaldo.saldo + '</span><span style="color:var(--text3)">/' + r.membSaldo.diasCiclo + 'd</span></td>'
+                  + '<td>' + situBadge + '</td>'
+                  + '<td>' + presBadge + '</td>'
+                  + '</tr>';
+              }).join('');
+            })()}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <!-- ── /BLOCO EQUIPE ── -->
+
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
       <div class="card">
         <div class="card-title" style="margin-bottom:14px">Minha situação</div>
